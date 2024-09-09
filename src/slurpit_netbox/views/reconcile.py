@@ -615,7 +615,7 @@ class ReconcileView(generic.ObjectListView):
                             if initial_vlan_values[key]:
                                 vlan_update_ignore_values.append(key)
 
-                    updated_fields = ['status', 'role', 'tenant', 'description']
+                    updated_fields = ['status', 'role', 'tenant', 'description', 'name']
                     fields_to_remove = []
                     
                     for field in updated_fields:
@@ -627,7 +627,7 @@ class ReconcileView(generic.ObjectListView):
 
                     for item in reconcile_items:
                         netbox_vlan = VLAN.objects.filter(name=item.name, group__name=item.group)
-                        if netbox_vlan is None:
+                        if not netbox_vlan:
                             netbox_vlan = VLAN.objects.filter(vid=item.vid, group__name=item.group)
 
                         # If the vlan is existed in netbox
