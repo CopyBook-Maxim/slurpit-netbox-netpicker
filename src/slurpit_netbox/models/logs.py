@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
 from netbox.models import PrimaryModel
-from extras.querysets import ObjectChangeQuerySet
+from core.querysets import ObjectChangeQuerySet
 
 class SlurpitLog(models.Model):
     log_time = models.DateTimeField(blank=True, auto_now=True, editable=False)
