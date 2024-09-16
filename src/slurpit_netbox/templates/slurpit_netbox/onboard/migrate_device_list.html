@@ -24,6 +24,11 @@
                     <i class="mdi mdi-pencil" aria-hidden="true"></i> {% trans "Update existing device" %}
                   </button>
               </li>
+              <li>
+                <button type="submit" name="_rename" formaction="{% url 'plugins:slurpit_netbox:onboard' %}?migrate=update_slurpit&return_url={% url 'plugins:slurpit_netbox:slurpitimporteddevice_list' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="dropdown-item">
+                  <i class="mdi mdi-pencil" aria-hidden="true"></i> {% trans "Update only slurpit parameters" %}
+                </button>
+            </li>
             </ul>
             {% endblock %}
             <button type="submit" name="_rename" formaction="{% url 'plugins:slurpit_netbox:onboard' %}?remove=true&return_url={% url 'plugins:slurpit_netbox:slurpitimporteddevice_list' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-danger ms-2 protect-btn" >

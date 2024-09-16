@@ -195,6 +195,29 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     obj.mapped_device = None
                     obj.save()
                     device.delete() #delete last to prevent cascade delete
+            elif migrate == 'update_slurpit':
+                for obj in self.queryset:
+                    device = obj.mapped_device
+                    device.name = obj.hostname
+                    
+                    set_device_custom_fields(device, {
+                        'slurpit_hostname': obj.hostname,
+                        'slurpit_fqdn': obj.fqdn,
+                        'slurpit_platform': obj.device_os,
+                        'slurpit_manufacturer': obj.brand,
+                        'slurpit_devicetype': obj.device_type,
+                        'slurpit_ipv4': obj.ipv4,
+                    })               
+                    
+                    device.save()
+
+                    log_message = f"Migration of onboarded device - {obj.hostname} successfully updated."
+                    SlurpitLog.success(category=LogCategoryChoices.ONBOARD, message=log_message)
+                
+                msg = f'Migration is done successfully.'
+                messages.success(self.request, msg)
+
+                return redirect(self.get_return_url(request))
             else:
                 for obj in self.queryset:
                     device = obj.mapped_device
@@ -253,6 +276,30 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
             conflic = request.GET.get('conflicted')
             if conflic == 'create':
                 Device.objects.filter(name__lower__in=self.queryset.values('hostname__lower')).delete()
+            elif conflic == 'update_slurpit':
+                for obj in self.queryset:
+                    device = Device.objects.filter(name__iexact=obj.hostname).first()
+
+                    set_device_custom_fields(device, {
+                        'slurpit_hostname': obj.hostname,
+                        'slurpit_fqdn': obj.fqdn,
+                        'slurpit_platform': obj.device_os,
+                        'slurpit_manufacturer': obj.brand,
+                        'slurpit_devicetype': obj.device_type,
+                        'slurpit_ipv4': obj.ipv4,
+                    })      
+                    obj.mapped_device = device    
+                    
+                    device.save()
+                    obj.save()
+
+                    log_message = f"Conflicted device resolved - {obj.hostname} successfully updated."
+                    SlurpitLog.success(category=LogCategoryChoices.ONBOARD, message=log_message)
+                
+                msg = f'Conflicts successfully resolved.'
+                messages.success(self.request, msg)
+
+                return redirect(self.get_return_url(request))
             else:
                 for obj in self.queryset:
                     device = Device.objects.filter(name__iexact=obj.hostname).first()
