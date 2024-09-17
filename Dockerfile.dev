@@ -5,7 +5,7 @@ FROM netboxcommunity/netbox:v4.1
 COPY /docker/configuration/configuration.py /etc/netbox/config/configuration.py
 COPY /docker/configuration/plugins.py /etc/netbox/config/plugins.py
 
-RUN pip install djangorestframework-bulk
+RUN pip install --no-cache-dir djangorestframework-bulk netboxlabs-netbox-branching
 
 # RUN apt-get update && apt-get install -y git
 # RUN git clone https://github.com/netbox-community/devicetype-library.git /tmp/repository \
