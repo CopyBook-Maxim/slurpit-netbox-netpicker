@@ -5,7 +5,7 @@
 
 | NetBox Version | Plugin Version |
 |----------------|----------------|
-|   NetBox 4.1   |    In progress |
+|   NetBox 4.1   |    >= 1.0.x    |
 |   NetBox 4.0   |    >= 0.9.x    |
 |   NetBox 3.7   |    >= 0.8.x    |
 
