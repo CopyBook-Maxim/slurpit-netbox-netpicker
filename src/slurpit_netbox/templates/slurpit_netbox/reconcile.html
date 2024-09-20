@@ -67,7 +67,7 @@ Context:
               </a>
             </li>
 
-            <li class="nav-item" role="presentation">
+            <li class="nav-item" role="presentation" style="display:none;">
               <a class="nav-tab nav-link {% if request.GET.tab == 'vlan' %}active{% endif %}" href="?tab=vlan">
                 Vlans {% badge vlan_count %}
               </a>
@@ -259,9 +259,15 @@ Context:
       
       // Check if there is more than one element with the class 'd-print-none'
       if (elements.length > 1) {
-        // Remove the class 'd-print-none' from the second element
-        elements[1].remove('d-print-none');
-        elements[2].remove('d-print-none');
+        // Remove the class 'd-print-none' from the second element, if it exists
+        if (elements[1]) {
+          elements[1].classList.remove('d-print-none');
+        }
+        
+        // Remove the class 'd-print-none' from the third element, if it exists
+        if (elements[2]) {
+          elements[2].classList.remove('d-print-none');
+        }
       }
     });
 
