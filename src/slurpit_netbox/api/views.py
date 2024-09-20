@@ -1122,6 +1122,7 @@ class SlurpitVLANView(SlurpitViewSet):
 
                     # Duplicate VLAN
                     keys = error_list_dict.keys()
+
                     if len(keys) ==1 and '__all__' in keys:
                         flag = True
                         for errorItem in error_list_dict['__all__']:
@@ -1169,7 +1170,7 @@ class SlurpitVLANView(SlurpitViewSet):
                         if not obj:
                             obj = VLAN.objects.filter(vid=item['vid'], group__name=item['hostname'])
 
-                        fields = {'status', 'tenant', 'role', 'description'}
+                        fields = {'status', 'tenant', 'role', 'description', 'name'}
                         not_null_fields = {'tenant', 'role', 'description'}
                         
                         new_vlan = {}
@@ -1195,7 +1196,7 @@ class SlurpitVLANView(SlurpitViewSet):
                                 new_vlan[field] = item[field]
 
                         batch_insert_qs.append(SlurpitVLAN(
-                            name = item['name'],
+                            # name = item['name'],
                             vid = item['vid'],
                             group = item['hostname'],
                             **new_vlan
@@ -1245,7 +1246,6 @@ class SlurpitVLANView(SlurpitViewSet):
                     VLAN.objects.bulk_create(to_import)
                     offset += BATCH_SIZE
                 
-                
                 # Batch Update
                 batch_update_qs = []
                 for update_item in update_data:
@@ -1253,12 +1253,15 @@ class SlurpitVLANView(SlurpitViewSet):
                         vlan_group = VLANGroup.objects.create(name=update_item['hostname'],slug=update_item['hostname'])
                         update_item['group'] = vlan_group
 
-                    item = VLAN.objects.get(name=update_item['name'], group=update_item['group'])
-                    if item is None:
-                        item = VLAN.objects.get(vid=update_item['vid'], group=update_item['group'])
+                    item = VLAN.objects.filter(name=update_item['name'], group=update_item['group'])
+                    if not item:
+                        item = VLAN.objects.filter(vid=update_item['vid'], group=update_item['group'])
+
+                    if item:
+                        item = item.first()
                     # Update
                     allowed_fields_with_none = {'status'}
-                    allowed_fields = {'role', 'tenant', 'description'}
+                    allowed_fields = {'role', 'tenant', 'description', 'name'}
 
                     for field, value in update_item.items():
                         ignore_field = f'ignore_{field}'
@@ -1283,7 +1286,7 @@ class SlurpitVLANView(SlurpitViewSet):
 
                     VLAN.objects.bulk_update(to_import, 
                         fields={
-                            'description', 'tenant', 'status', 'role'
+                            'description', 'tenant', 'status', 'role', 'name'
                         }
                     )
                     offset += BATCH_SIZE

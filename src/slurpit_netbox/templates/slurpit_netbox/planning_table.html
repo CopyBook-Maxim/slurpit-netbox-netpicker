@@ -90,30 +90,38 @@
   <script>
     var selectElement = document.getElementById('result-type');
     var form = document.getElementById('plan-form');
-    // Add an event listener for the 'change' event
-    selectElement.addEventListener('change', function(event) {
-      // The event target is the select element, and its value is the selected option's value
-      form.submit();
-    });
+
+    if(selectElement){
+      // Add an event listener for the 'change' event
+      selectElement.addEventListener('change', function(event) {
+        // The event target is the select element, and its value is the selected option's value
+        form.submit();
+      });
+    }
 
     var refreshElement = document.getElementById('refresh');
     var refreshInput = document.getElementById('refreshInput');
 
-    refreshElement.addEventListener('click', function(event) {
-      // The event target is the select element, and its value is the selected option's value
-      refreshInput.value = "refresh";
-      form.submit();
-    });
+    // Check if both elements exist before adding event listeners and updating values
+    if (refreshElement && refreshInput) {
+      refreshElement.addEventListener('click', function(event) {
+        // Update the refresh input value and submit the form
+        refreshInput.value = "refresh";
+        form.submit();
+      });
+    }
 
 
     var syncElement = document.getElementById('sync');
     var syncInput = document.getElementById('syncInput');
 
-    syncElement.addEventListener('click', function(event) {
-      // The event target is the select element, and its value is the selected option's value
-      syncInput.value = "sync";
-      form.submit();
-    });
+    if (syncElement && syncInput) {
+      syncElement.addEventListener('click', function(event) {
+        // The event target is the select element, and its value is the selected option's value
+        syncInput.value = "sync";
+        form.submit();
+      });
+    }
 
    
   </script>
