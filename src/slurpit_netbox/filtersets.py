@@ -73,7 +73,7 @@ class SlurpitImportedDeviceFilterSet(BaseFilterSet):
 
     class Meta:
         model = SlurpitImportedDevice
-        fields = ["id", "hostname", "device_os", "device_type", "fqdn", "brand", "ipv4"]
+        fields = ["id", "hostname", "device_os", "device_type", "fqdn", "brand", "ipv4", "site"]
 
     def search(self, queryset, name, value):
         if not value.strip():
