@@ -18,7 +18,7 @@ from .references.imports import *
 from dcim.models import Interface, Site
 from ipam.models import IPAddress
 
-BATCH_SIZE = 256
+BATCH_SIZE = 512
 columns = ('slurpit_id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', 'createddate', 'changeddate', 'site')
 
 
