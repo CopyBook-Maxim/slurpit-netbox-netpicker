@@ -15,11 +15,11 @@ from .management.choices import *
 from .references import base_name, plugin_type, custom_field_data_name
 from .references.generic import get_default_objects, status_inventory, status_offline, get_create_dcim_objects, set_device_custom_fields
 from .references.imports import *
-from dcim.models import Interface
+from dcim.models import Interface, Site
 from ipam.models import IPAddress
 
 BATCH_SIZE = 256
-columns = ('slurpit_id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', 'createddate', 'changeddate')
+columns = ('slurpit_id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', 'createddate', 'changeddate', 'site')
 
 
 def get_devices(offset):
@@ -50,6 +50,67 @@ def get_devices(offset):
 def start_device_import():
     with connection.cursor() as cursor:
         cursor.execute(f"truncate {SlurpitStagedDevice._meta.db_table} cascade")
+
+def format_address(street, number, zipcode, country):
+    return f"{street} {number} {zipcode} {country}"
+
+def sync_sites():
+    try:
+        setting = SlurpitSetting.objects.get()
+        uri_base = setting.server_url
+        headers = {
+                        'authorization': setting.api_key,
+                        'useragent': f"{plugin_type}/requests",
+                        'accept': 'application/json'
+                    }
+        uri_sites = f"{uri_base}/api/sites"
+        r = requests.get(uri_sites, headers=headers, timeout=15, verify=False)
+        data = r.json()
+        log_message = f"Syncing the devices from Slurp'it in {plugin_type.capitalize()}."
+        SlurpitLog.info(category=LogCategoryChoices.ONBOARD, message=log_message)
+        
+        # Import Slurpit Sites to NetBox
+        for item in data:
+            # First, format the address
+            address = format_address(item['street'], item['number'], item['zipcode'], item['country'])
+            
+            if item['latitude'] == '':
+                item['latitude'] = None
+            
+            if item['longitude'] == '':
+                item['longitude'] = None
+
+            # Prepare data for the Site instance
+            site_data = {
+                'description': item['description'],
+                'longitude': item['longitude'],
+                'latitude': item['latitude'],
+                'slug': item['sitename'],
+                'status': 'active',
+                'physical_address': address,
+                'shipping_address': address,
+            }
+
+            # Update if exists, create if not
+            site, created = Site.objects.update_or_create(
+                name=item['sitename'],  # Field to match for finding the record
+                defaults=site_data       # Fields to update or set if the object is created
+            )
+
+            if created:
+                print(f"Created new site with name {item['sitename']}")
+            else:
+                print(f"Updated existing site with name {item['sitename']}")
+
+        return data, ""
+    except ObjectDoesNotExist:
+        setting = None
+        log_message = "Need to set the setting parameter"
+        SlurpitLog.failure(category=LogCategoryChoices.ONBOARD, message=log_message)
+        return None, log_message
+    except Exception as e:
+        log_message = "Please confirm the Slurp'it server is running and reachable."
+        return None, log_message
 
 def import_devices(devices):
     to_insert = []
@@ -148,6 +209,7 @@ def handle_changed():
         for device in batch_qs:
             result = SlurpitImportedDevice.objects.get(slurpit_id=device.slurpit_id)
             result.copy_staged_values(device)
+            
             result.save()
             get_create_dcim_objects(device)
             if result.mapped_device:
@@ -184,6 +246,7 @@ def handle_changed():
                     result.mapped_device.primary_ip4 = ipaddress
 
                 result.mapped_device.name = device.hostname
+
                 result.mapped_device.save()
         offset += BATCH_SIZE
 
@@ -213,7 +276,8 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
         'slurpit_platform': staged.device_os,
         'slurpit_manufacturer': staged.brand,
         'slurpit_devicetype': staged.device_type,
-        'slurpit_ipv4': staged.ipv4
+        'slurpit_ipv4': staged.ipv4,
+        'slurpit_site': staged.site
     })    
 
     try:

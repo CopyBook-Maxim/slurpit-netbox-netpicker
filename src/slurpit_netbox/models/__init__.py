@@ -109,6 +109,17 @@ def create_custom_fields():
                 })
     cf.object_types.set({device})
 
+    cf, _ = CustomField.objects.get_or_create(
+                name='slurpit_site',
+                defaults={            
+                    "type":CustomFieldTypeChoices.TYPE_TEXT,
+                    "description":"",
+                    "is_cloneable":True,
+                    "label":'Site',
+                    "group_name":"Slurp'it",
+                })
+    cf.object_types.set({device})
+
 def create_default_data_mapping():
     SlurpitMapping.objects.all().delete()
     
