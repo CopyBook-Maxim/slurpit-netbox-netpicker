@@ -22,9 +22,10 @@ class SlurpitStagedDevice(NetBoxModel):
     device_os = models.CharField(max_length=128)
     device_type = models.CharField(max_length=255)
     brand = models.CharField(max_length=255)
+    site = models.CharField(max_length=255, null=True)
     createddate = models.DateTimeField()
     changeddate = models.DateTimeField()
-
+    
     def __str__(self):
         return f"{self.hostname}"
     
@@ -37,6 +38,7 @@ class SlurpitImportedDevice(NetBoxModel):
     ipv4 = models.CharField(max_length=23, null=True)
     device_os = models.CharField(max_length=128)
     device_type = models.CharField(max_length=255)
+    site = models.CharField(max_length=255, null=True)
     brand = models.CharField(max_length=255)
     createddate = models.DateTimeField()
     changeddate = models.DateTimeField()
@@ -63,6 +65,7 @@ class SlurpitImportedDevice(NetBoxModel):
         self.device_os = device.device_os
         self.device_type = device.device_type
         self.brand = device.brand
+        self.site = device.site
         self.createddate = device.createddate
         self.changeddate = device.changeddate
 

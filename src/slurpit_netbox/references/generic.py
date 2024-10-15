@@ -12,7 +12,7 @@ def create_form(form, data, model, initial):
 def get_form_device_data(form):
     return {
             'role': form.cleaned_data['role'],
-            'site': form.cleaned_data['site'],
+            # 'site': form.cleaned_data['site'],
             'location': form.cleaned_data['location'],
             'rack': form.cleaned_data['rack'],
             'position': form.cleaned_data['position'],

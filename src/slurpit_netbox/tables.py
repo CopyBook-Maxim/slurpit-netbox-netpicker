@@ -38,7 +38,8 @@ class ConditionalToggle(ToggleColumn):
             record.mapped_device.custom_field_data['slurpit_hostname'] != record.hostname or
             record.mapped_device.custom_field_data['slurpit_fqdn'] != record.fqdn or
             record.mapped_device.custom_field_data['slurpit_platform'] != record.device_os or 
-            record.mapped_device.custom_field_data['slurpit_manufacturer'] != record.brand
+            record.mapped_device.custom_field_data['slurpit_manufacturer'] != record.brand or
+            record.mapped_device.custom_field_data['slurpit_site'] != record.site
         ):
             return super().render(value, bound_column, record)
         return super().render(value, bound_column, record)

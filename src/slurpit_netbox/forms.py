@@ -69,9 +69,9 @@ class OnboardingForm(NetBoxModelBulkEditForm):
         queryset=DeviceRole.objects.all(),
         required=True
     )
-    site = DynamicModelChoiceField(
+    site = forms.ChoiceField(
+        choices=[],
         label=_('Site'),
-        queryset=Site.objects.all(),
         required=True
     )
     region = DynamicModelChoiceField(
@@ -160,13 +160,24 @@ class OnboardingForm(NetBoxModelBulkEditForm):
     )
     def __init__(self, *args, **kwargs):
         device_types = kwargs['initial'].pop('device_types', None)
+        sites = kwargs['initial'].pop('sites', None)
+
         super().__init__(*args, **kwargs)
+
         choices = []
         if device_types and len(device_types) > 1:
             choices = [('keep_original', 'Keep Original Type')]
         for dt in DeviceType.objects.all().order_by('id'):
             choices.append((dt.id, dt.model))          
         self.fields['device_type'].choices = choices
+
+        choices = []
+        if sites and len(sites) > 1:
+            choices = [('keep_original', 'Keep Original Type')]
+
+        for site in Site.objects.all().order_by('id'):
+            choices.append((site.id, site.name))          
+        self.fields['site'].choices = choices
 
 class SlurpitPlanningTableForm(forms.Form):
     planning_id = DynamicModelChoiceField(

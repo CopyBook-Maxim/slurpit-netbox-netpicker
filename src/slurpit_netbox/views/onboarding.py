@@ -17,7 +17,7 @@ from django.utils.text import slugify
 from .. import get_config, forms, importer, models, tables
 from ..models import SlurpitImportedDevice, SlurpitLog, SlurpitSetting
 from ..management.choices import *
-from ..importer import get_dcim_device, import_from_queryset, run_import, get_devices, BATCH_SIZE, import_devices, process_import, start_device_import
+from ..importer import get_dcim_device, import_from_queryset, run_import, get_devices, BATCH_SIZE, import_devices, process_import, start_device_import, sync_sites
 from ..decorators import slurpit_plugin_registered
 from ..references import base_name, custom_field_data_name
 from ..references.generic import create_form, get_form_device_data, SlurpitViewMixim, get_default_objects, set_device_custom_fields, status_inventory, get_create_dcim_objects
@@ -40,19 +40,22 @@ class SlurpitImportedDeviceListView(SlurpitViewMixim, generic.ObjectListView):
                 slurpit_platform=KeyTextTransform('slurpit_platform', 'mapped_device__' + custom_field_data_name),
                 slurpit_manufacturer=KeyTextTransform('slurpit_manufacturer', 'mapped_device__' + custom_field_data_name),
                 slurpit_ipv4=KeyTextTransform('slurpit_ipv4', 'mapped_device__' + custom_field_data_name),
+                slurpit_site=KeyTextTransform('slurpit_site', 'mapped_device__' + custom_field_data_name),
                 fdevicetype=F('device_type'),
                 fhostname=F('hostname'),
                 ffqdn=F('fqdn'),
                 fipv4=F('ipv4'),
                 fdeviceos=F('device_os'),
-                fbrand=F('brand')
+                fbrand=F('brand'),
+                fsite=F('site')
             ).exclude(
                 Q(slurpit_devicetype=F('fdevicetype')) & 
                 Q(slurpit_hostname=F('fhostname')) & 
                 Q(slurpit_fqdn=F('ffqdn')) & 
                 Q(slurpit_platform=F('fdeviceos')) & 
                 Q(slurpit_manufacturer=F('fbrand')) &
-                Q(slurpit_ipv4=F('fipv4'))
+                Q(slurpit_ipv4=F('fipv4')) &
+                Q(slurpit_site=F('fsite'))
             )
     
     queryset = to_onboard_queryset
@@ -148,6 +151,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         cf.pop('slurpit_manufacturer')
                         cf.pop('slurpit_devicetype')
                         cf.pop('slurpit_ipv4')
+                        cf.pop('slurpit_site')
                         onboarded_item.mapped_device.custom_field_data = cf
                         onboarded_item.mapped_device.save()
                 self.queryset.delete()
@@ -156,8 +160,9 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
             return redirect(self.get_return_url(request))
 
         device_types = list(self.queryset.values_list('device_type').distinct())
-        form = create_form(self.form, request.POST, models.SlurpitImportedDevice, {'pk': pk_list, 'device_types': device_types})
+        sites = list(self.queryset.values_list('site').distinct())
 
+        form = create_form(self.form, request.POST, models.SlurpitImportedDevice, {'pk': pk_list, 'device_types': device_types, 'sites': sites})
         restrict_form_fields(form, request.user)
 
         if '_apply' in request.POST:
@@ -207,8 +212,16 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         'slurpit_manufacturer': obj.brand,
                         'slurpit_devicetype': obj.device_type,
                         'slurpit_ipv4': obj.ipv4,
-                    })               
-                    
+                        'slurpit_site': obj.site
+                    })    
+
+                    # Update Site           
+                    defaults = get_default_objects()
+                    site = defaults['site']
+                    if obj.site is not None and site != "":
+                        site = Site.objects.get(name=obj.site)
+                    device.site = site
+
                     device.save()
 
                     log_message = f"Migration of onboarded device - {obj.hostname} successfully updated."
@@ -229,7 +242,15 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         'slurpit_manufacturer': obj.brand,
                         'slurpit_devicetype': obj.device_type,
                         'slurpit_ipv4': obj.ipv4,
+                        'slurpit_site': obj.site
                     })               
+
+                    # Update Site           
+                    defaults = get_default_objects()
+                    site = defaults['site']
+                    if obj.site is not None and site != "":
+                        site = Site.objects.get(name=obj.site)
+                    device.site = site
 
                     device.device_type = get_create_dcim_objects(obj)
                     
@@ -287,9 +308,17 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         'slurpit_manufacturer': obj.brand,
                         'slurpit_devicetype': obj.device_type,
                         'slurpit_ipv4': obj.ipv4,
+                        'slurpit_site': obj.site
                     })      
                     obj.mapped_device = device    
                     
+                    # Update Site           
+                    defaults = get_default_objects()
+                    site = defaults['site']
+                    if obj.site is not None and site != "":
+                        site = Site.objects.get(name=obj.site)
+                    device.site = site
+
                     device.save()
                     obj.save()
 
@@ -311,6 +340,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         'slurpit_manufacturer': obj.brand,
                         'slurpit_devicetype': obj.device_type,
                         'slurpit_ipv4': obj.ipv4,
+                        'slurpit_site': obj.site
                     })      
                     obj.mapped_device = device    
 
@@ -323,6 +353,13 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     
                     if device.device_type:
                         device.platform = device.device_type.default_platform
+
+                    # Update Site           
+                    defaults = get_default_objects()
+                    site = defaults['site']
+                    if obj.site is not None and site != "":
+                        site = Site.objects.get(name=obj.site)
+                    device.site = site
 
                     device.save()
                     obj.save()
@@ -355,7 +392,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
 
                 return redirect(self.get_return_url(request))
         
-        initial_data = {'pk': pk_list, 'device_types': device_types}
+        initial_data = {'pk': pk_list, 'device_types': device_types, 'sites': sites}
         for k, v in get_default_objects().items():
             initial_data.setdefault(k, str(v.id))
         initial_data.setdefault('status', status_inventory())
@@ -367,6 +404,12 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
             initial_data['device_type'] = 'keep_original'
         if len(device_types) == 1 and (dt := DeviceType.objects.filter(model__iexact=device_types[0][0]).first()):
             initial_data['device_type'] = dt.id
+        
+        if len(sites) > 1:
+            initial_data['site'] = 'keep_original'
+        
+        if len(sites) == 1 and (site := Site.objects.filter(name=sites[0][0]).first()):
+            initial_data['site'] = site.id
 
         form = create_form(self.form, None, models.SlurpitImportedDevice, initial_data)
         restrict_form_fields(form, request.user)
@@ -392,6 +435,11 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
         device_type = None
         if form.cleaned_data['device_type'] != 'keep_original':
             device_type = DeviceType.objects.filter(id=form.cleaned_data['device_type']).first()
+
+        site = None
+        if form.cleaned_data['site'] != 'keep_original':
+            site = Site.objects.filter(id=form.cleaned_data['site']).first()
+
         updated_objects = []
         data = get_form_device_data(form)
 
@@ -405,8 +453,15 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
             if not device_type:
                 dt = obj.mapped_devicetype
             
+            item_site = site
+            if not item_site:
+                if obj.site is None or obj.site == "":
+                    defaults = get_default_objects()
+                    item_site = defaults['site']
+                else:
+                    item_site = Site.objects.get(name=obj.site)
             try:
-                device = get_dcim_device(obj, device_type=dt, **data)
+                device = get_dcim_device(obj, device_type=dt, site=item_site, **data)
                 obj.mapped_device = device
                 obj.save()
                 updated_objects.append(obj)
@@ -435,6 +490,8 @@ class ImportDevices(View):
             if offset is not None:
                 offset = int(offset)
                 if offset == 0:
+                    sync_sites()
+                    
                     start_device_import()
                 devices, log_message = get_devices(offset)
                 if devices is not None and len(devices) > 0:

@@ -14,7 +14,7 @@ from django.http import JsonResponse
 from django.contrib.contenttypes.models import ContentType
 from django.forms.models import model_to_dict
 from django.utils import timezone
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.core.serializers import serialize
 
 from .serializers import (
@@ -360,8 +360,6 @@ class SlurpitInterfaceView(SlurpitViewSet):
                 if unique_interface in duplicates:
                     continue
                 duplicates.append(unique_interface)
-
-                obj = Interface()
                 
                 device = None
                 try:
@@ -375,32 +373,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
                 del record['hostname']
                 
                 new_data = {**initial_interface_values, **record}
-                form = InterfaceForm(data=new_data, instance=obj)
                 total_data.append(new_data)
-                
-                # Fail case
-                if form.is_valid() is False:
-                    form_errors = form.errors
-                    error_list_dict = {}
-
-                    for field, errors in form_errors.items():
-                        error_list_dict[field] = list(errors)
-
-                    # Duplicate Interface
-                    keys = error_list_dict.keys()
-                    
-                    if len(keys) ==1 and '__all__' in keys and len(error_list_dict['__all__']) == 1 and error_list_dict['__all__'][0].endswith("already exists."):
-                        update_data.append(new_data)
-                        continue
-                    if '__all__' in keys and len(error_list_dict['__all__']) == 1 and error_list_dict['__all__'][0].endswith("already exists."):
-                        del error_list_dict['__all__']
-                    
-                    error_key = f'{new_data["name"]}({"Global" if new_data["device"] is None else new_data["device"]})'
-                    total_errors[error_key] = error_list_dict
-
-                    return JsonResponse({'status': 'error', 'errors': total_errors}, status=400)
-                else:
-                    insert_data.append(new_data)
        
             if enable_reconcile:
                 batch_update_qs = []
@@ -422,14 +395,18 @@ class SlurpitInterfaceView(SlurpitViewSet):
                         # Update
                         allowed_fields_with_none = {}
                         allowed_fields = {'duplex', 'label', 'description', 'speed', 'type', 'module'}
-
+                        update = False
                         for field, value in item.items():
-                            if field in allowed_fields and value is not None and value != "":
-                                setattr(slurpit_interface_item, field, value)
-                            if field in allowed_fields_with_none:
-                                setattr(slurpit_interface_item, field, value)
-
-                        batch_update_qs.append(slurpit_interface_item)
+                            current = getattr(slurpit_interface_item, field, None)
+                            if current != value:
+                                if field in allowed_fields and value is not None and value != "":
+                                    update = True
+                                    setattr(slurpit_interface_item, field, value)
+                                if field in allowed_fields_with_none:
+                                    update = True
+                                    setattr(slurpit_interface_item, field, value)
+                        if update:
+                            batch_update_qs.append(slurpit_interface_item)
                     else:
                         obj = Interface.objects.filter(name=item['name'], device=item['device'])
                         fields = {'label', 'device', 'module', 'type', 'duplex', 'speed', 'description'}
@@ -466,11 +443,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
 
                 while offset < count:
                     batch_qs = batch_insert_qs[offset:offset + BATCH_SIZE]
-                    to_import = []        
-                    for interface_item in batch_qs:
-                        to_import.append(interface_item)
-
-                    SlurpitInterface.objects.bulk_create(to_import)
+                    SlurpitInterface.objects.bulk_create(batch_qs)
                     offset += BATCH_SIZE
 
 
@@ -478,16 +451,42 @@ class SlurpitInterfaceView(SlurpitViewSet):
                 offset = 0
                 while offset < count:
                     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                    to_import = []        
-                    for interface_item in batch_qs:
-                        to_import.append(interface_item)
-
-                    SlurpitInterface.objects.bulk_update(to_import, 
+                    SlurpitInterface.objects.bulk_update(batch_qs, 
                         fields={'label', 'speed', 'type', 'duplex', 'description', 'module'}
                     )
                     offset += BATCH_SIZE
 
-            else:
+                duplicates = SlurpitInterface.objects.values('name', 'device_id').annotate(count=Count('id')).filter(count__gt=1)
+                for duplicate in duplicates:
+                    records = SlurpitInterface.objects.filter(name=duplicate['name'], device_id=duplicate['device_id'])                    
+                    records.exclude(id=records.first().id).delete()
+            else:                
+                # Fail case
+                for new_data in total_data:
+                    obj = Interface()
+                    form = InterfaceForm(data=new_data, instance=obj)
+                    if form.is_valid() is False:
+                        form_errors = form.errors
+                        error_list_dict = {}
+
+                        for field, errors in form_errors.items():
+                            error_list_dict[field] = list(errors)
+
+                        # Duplicate Interface
+                        keys = error_list_dict.keys()
+                        
+                        if len(keys) ==1 and '__all__' in keys and len(error_list_dict['__all__']) == 1 and error_list_dict['__all__'][0].endswith("already exists."):
+                            update_data.append(new_data)
+                            continue
+                        if '__all__' in keys and len(error_list_dict['__all__']) == 1 and error_list_dict['__all__'][0].endswith("already exists."):
+                            del error_list_dict['__all__']
+                        
+                        error_key = f'{new_data["name"]}({"Global" if new_data["device"] is None else new_data["device"]})'
+                        total_errors[error_key] = error_list_dict
+
+                        return JsonResponse({'status': 'error', 'errors': total_errors}, status=400)
+                    else:
+                        insert_data.append(new_data)
 
                 # Batch Insert
                 count = len(insert_data)
@@ -608,34 +607,8 @@ class SlurpitIPAMView(SlurpitViewSet):
                     continue
                 duplicates.append(unique_ipaddress)
 
-                obj = IPAddress()
                 new_data = {**initial_ipaddress_values, **record}
-                form = IPAddressForm(data=new_data, instance=obj)
                 total_ips.append(new_data)
-                
-                # Fail case
-                if form.is_valid() is False:
-                    form_errors = form.errors
-                    error_list_dict = {}
-
-                    for field, errors in form_errors.items():
-                        error_list_dict[field] = list(errors)
-
-                    # Duplicate IP Address
-                    keys = error_list_dict.keys()
-                    
-                    if len(keys) ==1 and 'address' in keys and len(error_list_dict['address']) == 1 and error_list_dict['address'][0].startswith("Duplicate"):
-                        update_ips.append(new_data)
-                        continue
-                    if 'address' in keys and len(error_list_dict['address']) == 1 and error_list_dict['address'][0].startswith("Duplicate"):
-                        del error_list_dict['address']
-                    
-                    error_key = f'{new_data["address"]}({"Global" if new_data["vrf"] is None else new_data["vrf"]})'
-                    total_errors[error_key] = error_list_dict
-
-                    return JsonResponse({'status': 'error', 'errors': total_errors}, status=400)
-                else:
-                    insert_ips.append(new_data)
 
 
 
@@ -654,12 +627,16 @@ class SlurpitIPAMView(SlurpitViewSet):
                         allowed_fields = {'role', 'tenant', 'dns_name', 'description'}
 
                         for field, value in item.items():
-                            if field in allowed_fields and value is not None and value != "":
-                                setattr(slurpit_ipaddress_item, field, value)
-                            if field in allowed_fields_with_none:
-                                setattr(slurpit_ipaddress_item, field, value)
-
-                        batch_update_qs.append(slurpit_ipaddress_item)
+                            current = getattr(slurpit_ipaddress_item, field, None)
+                            if current != value:
+                                if field in allowed_fields and value is not None and value != "":
+                                    update = True
+                                    setattr(slurpit_ipaddress_item, field, value)
+                                if field in allowed_fields_with_none:
+                                    update = True
+                                    setattr(slurpit_ipaddress_item, field, value)
+                        if update:
+                            batch_update_qs.append(slurpit_ipaddress_item)
                     else:
                         obj = IPAddress.objects.filter(address=item['address'], vrf=vrf)
                         fields = ['status', 'role', 'description', 'tenant', 'dns_name']
@@ -699,29 +676,49 @@ class SlurpitIPAMView(SlurpitViewSet):
 
                 while offset < count:
                     batch_qs = batch_insert_qs[offset:offset + BATCH_SIZE]
-                    to_import = []        
-                    for ipaddress_item in batch_qs:
-                        to_import.append(ipaddress_item)
-
-                    created_items = SlurpitInitIPAddress.objects.bulk_create(to_import)
+                    created_items = SlurpitInitIPAddress.objects.bulk_create(batch_qs)
                     offset += BATCH_SIZE
-
-
 
                 count = len(batch_update_qs)
                 offset = 0
                 while offset < count:
                     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                    to_import = []        
-                    for ipaddress_item in batch_qs:
-                        to_import.append(ipaddress_item)
-
-                    SlurpitInitIPAddress.objects.bulk_update(to_import, fields={'status', 'role', 'tenant', 'dns_name', 'description'})
-
-
+                    SlurpitInitIPAddress.objects.bulk_update(batch_qs, fields={'status', 'role', 'tenant', 'dns_name', 'description'})
                     offset += BATCH_SIZE
+
+                duplicates = SlurpitInitIPAddress.objects.values('address', 'vrf').annotate(count=Count('id')).filter(count__gt=1)
+                for duplicate in duplicates:
+                    records = SlurpitInitIPAddress.objects.filter(address=duplicate['address'], vrf=duplicate['vrf'])                    
+                    records.exclude(id=records.first().id).delete()
                 
             else:
+                # Fail case
+                for new_data in total_ips:
+                    obj = IPAddress()
+                    form = IPAddressForm(data=new_data, instance=obj)
+                    if form.is_valid() is False:
+                        form_errors = form.errors
+                        error_list_dict = {}
+
+                        for field, errors in form_errors.items():
+                            error_list_dict[field] = list(errors)
+
+                        # Duplicate IP Address
+                        keys = error_list_dict.keys()
+                        
+                        if len(keys) ==1 and 'address' in keys and len(error_list_dict['address']) == 1 and error_list_dict['address'][0].startswith("Duplicate"):
+                            update_ips.append(new_data)
+                            continue
+                        if 'address' in keys and len(error_list_dict['address']) == 1 and error_list_dict['address'][0].startswith("Duplicate"):
+                            del error_list_dict['address']
+                        
+                        error_key = f'{new_data["address"]}({"Global" if new_data["vrf"] is None else new_data["vrf"]})'
+                        total_errors[error_key] = error_list_dict
+
+                        return JsonResponse({'status': 'error', 'errors': total_errors}, status=400)
+                    else:
+                        insert_ips.append(new_data)
+
                 # Batch Insert
                 count = len(insert_ips)
                 offset = 0
@@ -760,11 +757,8 @@ class SlurpitIPAMView(SlurpitViewSet):
                 offset = 0
                 while offset < count:
                     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                    to_import = []        
-                    for ipaddress_item in batch_qs:
-                        to_import.append(ipaddress_item)
 
-                    IPAddress.objects.bulk_update(to_import, fields={'status', 'role', 'tenant', 'dns_name', 'description'})
+                    IPAddress.objects.bulk_update(batch_qs, fields={'status', 'role', 'tenant', 'dns_name', 'description'})
                     offset += BATCH_SIZE
 
 
@@ -852,7 +846,6 @@ class SlurpitPrefixView(SlurpitViewSet):
                     continue
                 duplicates.append(unique_prefix)
 
-                obj = Prefix()
                 if 'vrf' in record and len(record['vrf']) > 0:
                     vrf = VRF.objects.filter(name=record['vrf'])
                     if vrf:
@@ -865,32 +858,7 @@ class SlurpitPrefixView(SlurpitViewSet):
                         del record['vrf']
 
                 new_data = {**initial_prefix_values, **record}
-                form = PrefixForm(data=new_data, instance=obj)
                 total_data.append(new_data)
-                
-                # Fail case
-                if form.is_valid() is False:
-                    form_errors = form.errors
-                    error_list_dict = {}
-
-                    for field, errors in form_errors.items():
-                        error_list_dict[field] = list(errors)
-
-                    # Duplicate Prefix
-                    keys = error_list_dict.keys()
-                    
-                    if len(keys) ==1 and 'prefix' in keys and len(error_list_dict['prefix']) == 1 and error_list_dict['prefix'][0].startswith("Duplicate"):
-                        update_data.append(new_data)
-                        continue
-                    if 'prefix' in keys and len(error_list_dict['prefix']) == 1 and error_list_dict['prefix'][0].startswith("Duplicate"):
-                        del error_list_dict['prefix']
-                    
-                    error_key = f'{new_data["prefix"]}({"Global" if new_data["vrf"] is None else new_data["vrf"]})'
-                    total_errors[error_key] = error_list_dict
-
-                    return JsonResponse({'status': 'error', 'errors': total_errors}, status=400)
-                else:
-                    insert_data.append(new_data)
         
             if enable_reconcile:
                 batch_update_qs = []
@@ -907,12 +875,16 @@ class SlurpitPrefixView(SlurpitViewSet):
                         allowed_fields = {'role', 'tenant', 'site', 'vlan', 'vrf', 'description'}
 
                         for field, value in item.items():
-                            if field in allowed_fields and value is not None and value != "":
-                                setattr(slurpit_prefix_item, field, value)
-                            if field in allowed_fields_with_none:
-                                setattr(slurpit_prefix_item, field, value)
-
-                        batch_update_qs.append(slurpit_prefix_item)
+                            current = getattr(slurpit_prefix_item, field, None)
+                            if current != value:
+                                if field in allowed_fields and value is not None and value != "":
+                                    update = True
+                                    setattr(slurpit_prefix_item, field, value)
+                                if field in allowed_fields_with_none:
+                                    update = True
+                                    setattr(slurpit_prefix_item, field, value)
+                        if update:
+                            batch_update_qs.append(slurpit_prefix_item)
                     else:
                         obj = Prefix.objects.filter(prefix=item['prefix'], vrf=item['vrf'])
                         
@@ -951,11 +923,7 @@ class SlurpitPrefixView(SlurpitViewSet):
 
                 while offset < count:
                     batch_qs = batch_insert_qs[offset:offset + BATCH_SIZE]
-                    to_import = []        
-                    for prefix_item in batch_qs:
-                        to_import.append(prefix_item)
-
-                    SlurpitPrefix.objects.bulk_create(to_import)
+                    SlurpitPrefix.objects.bulk_create(batch_qs)
                     offset += BATCH_SIZE
 
 
@@ -963,16 +931,41 @@ class SlurpitPrefixView(SlurpitViewSet):
                 offset = 0
                 while offset < count:
                     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                    to_import = []        
-                    for prefix_item in batch_qs:
-                        to_import.append(prefix_item)
-
-                    SlurpitPrefix.objects.bulk_update(to_import, 
-                        fields={'description', 'vrf', 'tenant', 'status', 'vlan', 'site', 'role'},
-                    )
+                    SlurpitPrefix.objects.bulk_update(batch_qs, fields={'description', 'vrf', 'tenant', 'status', 'vlan', 'site', 'role'})
                     offset += BATCH_SIZE
 
-            else:
+                duplicates = SlurpitPrefix.objects.values('prefix', 'vrf').annotate(count=Count('id')).filter(count__gt=1)
+                for duplicate in duplicates:
+                    records = SlurpitPrefix.objects.filter(prefix=duplicate['prefix'], vrf=duplicate['vrf'])                    
+                    records.exclude(id=records.first().id).delete()
+
+            else:                
+                # Fail case
+                for new_data in total_data:
+                    obj = Prefix()
+                    form = PrefixForm(data=new_data, instance=obj)
+                    if form.is_valid() is False:
+                        form_errors = form.errors
+                        error_list_dict = {}
+
+                        for field, errors in form_errors.items():
+                            error_list_dict[field] = list(errors)
+
+                        # Duplicate Prefix
+                        keys = error_list_dict.keys()
+                        
+                        if len(keys) ==1 and 'prefix' in keys and len(error_list_dict['prefix']) == 1 and error_list_dict['prefix'][0].startswith("Duplicate"):
+                            update_data.append(new_data)
+                            continue
+                        if 'prefix' in keys and len(error_list_dict['prefix']) == 1 and error_list_dict['prefix'][0].startswith("Duplicate"):
+                            del error_list_dict['prefix']
+                        
+                        error_key = f'{new_data["prefix"]}({"Global" if new_data["vrf"] is None else new_data["vrf"]})'
+                        total_errors[error_key] = error_list_dict
+
+                        return JsonResponse({'status': 'error', 'errors': total_errors}, status=400)
+                    else:
+                        insert_data.append(new_data)
 
                 # Batch Insert
                 count = len(insert_data)
@@ -1095,7 +1088,6 @@ class SlurpitVLANView(SlurpitViewSet):
                 duplicates.append(unique_group_name)
                 duplicates.append(unique_group_id)
 
-                obj = VLAN()
 
                 new_data = {
                     **initial_vlan_values, 
@@ -1108,46 +1100,13 @@ class SlurpitVLANView(SlurpitViewSet):
                 if group:
                     group = group.first()
                     new_data['group'] = group
-
-                form = VLANForm(data=new_data, instance=obj)
                 total_data.append(new_data)
-                
-                # Fail case
-                if form.is_valid() is False:
-                    form_errors = form.errors
-                    error_list_dict = {}
-
-                    for field, errors in form_errors.items():
-                        error_list_dict[field] = list(errors)
-
-                    # Duplicate VLAN
-                    keys = error_list_dict.keys()
-
-                    if len(keys) ==1 and '__all__' in keys:
-                        flag = True
-                        for errorItem in error_list_dict['__all__']:
-                            if not errorItem.endswith("already exists."):
-                                flag = False
-                                break
-                        if flag:
-                            update_data.append(new_data)
-                            continue
-                    if '__all__' in keys:
-                        del error_list_dict['__all__']
-                    
-                    error_key = f'{new_data["name"]}({new_data["vid"]})'
-                    total_errors[error_key] = error_list_dict
-
-                    return JsonResponse({'status': 'error', 'errors': total_errors}, status=400)
-                else:
-                    insert_data.append(new_data)
         
             if enable_reconcile:
                 batch_update_qs = []
                 batch_insert_qs = []
 
                 for item in total_data:
-
                     slurpit_vlan_item = SlurpitVLAN.objects.filter(name=item['name'], group=item['hostname'])
                     if not slurpit_vlan_item:
                         slurpit_vlan_item = SlurpitVLAN.objects.filter(vid=item['vid'], group=item['hostname'])
@@ -1159,12 +1118,16 @@ class SlurpitVLANView(SlurpitViewSet):
                         allowed_fields = {'role', 'tenant', 'description'}
 
                         for field, value in item.items():
-                            if field in allowed_fields and value is not None and value != "":
-                                setattr(slurpit_vlan_item, field, value)
-                            if field in allowed_fields_with_none:
-                                setattr(slurpit_vlan_item, field, value)
-
-                        batch_update_qs.append(slurpit_vlan_item)
+                            current = getattr(slurpit_vlan_item, field, None)
+                            if current != value:
+                                if field in allowed_fields and value is not None and value != "":
+                                    update = True
+                                    setattr(slurpit_vlan_item, field, value)
+                                if field in allowed_fields_with_none:
+                                    update = True
+                                    setattr(slurpit_vlan_item, field, value)
+                        if update:
+                            batch_update_qs.append(slurpit_vlan_item)
                     else:
                         obj = VLAN.objects.filter(name=item['name'], group__name=item['hostname'])
                         if not obj:
@@ -1207,11 +1170,7 @@ class SlurpitVLANView(SlurpitViewSet):
 
                 while offset < count:
                     batch_qs = batch_insert_qs[offset:offset + BATCH_SIZE]
-                    to_import = []        
-                    for vlan_item in batch_qs:
-                        to_import.append(vlan_item)
-
-                    SlurpitVLAN.objects.bulk_create(to_import)
+                    SlurpitVLAN.objects.bulk_create(batch_qs)
                     offset += BATCH_SIZE
 
 
@@ -1219,16 +1178,52 @@ class SlurpitVLANView(SlurpitViewSet):
                 offset = 0
                 while offset < count:
                     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                    to_import = []        
-                    for vlan_item in batch_qs:
-                        to_import.append(vlan_item)
-
-                    SlurpitVLAN.objects.bulk_update(to_import, 
-                        fields={'description', 'tenant', 'status', 'role'},
-                    )
+                    SlurpitVLAN.objects.bulk_update(batch_qs, fields={'description', 'tenant', 'status', 'role'})
                     offset += BATCH_SIZE
 
-            else:
+                duplicates = SlurpitVLAN.objects.values('name', 'group').annotate(count=Count('id')).filter(count__gt=1)
+                for duplicate in duplicates:
+                    records = SlurpitVLAN.objects.filter(name=duplicate['name'], group=duplicate['hostname'])                    
+                    records.exclude(id=records.first().id).delete()
+
+                duplicates = SlurpitVLAN.objects.values('vid', 'group').annotate(count=Count('id')).filter(count__gt=1)
+                for duplicate in duplicates:
+                    records = SlurpitVLAN.objects.filter(vid=duplicate['vid'], group=duplicate['hostname'])                    
+                    records.exclude(id=records.first().id).delete()
+
+            else:                
+                # Fail case
+                for new_data in total_data:
+                    obj = VLAN()
+                    form = VLANForm(data=new_data, instance=obj)
+                    if form.is_valid() is False:
+                        form_errors = form.errors
+                        error_list_dict = {}
+
+                        for field, errors in form_errors.items():
+                            error_list_dict[field] = list(errors)
+
+                        # Duplicate VLAN
+                        keys = error_list_dict.keys()
+
+                        if len(keys) ==1 and '__all__' in keys:
+                            flag = True
+                            for errorItem in error_list_dict['__all__']:
+                                if not errorItem.endswith("already exists."):
+                                    flag = False
+                                    break
+                            if flag:
+                                update_data.append(new_data)
+                                continue
+                        if '__all__' in keys:
+                            del error_list_dict['__all__']
+                        
+                        error_key = f'{new_data["name"]}({new_data["vid"]})'
+                        total_errors[error_key] = error_list_dict
+
+                        return JsonResponse({'status': 'error', 'errors': total_errors}, status=400)
+                    else:
+                        insert_data.append(new_data)
 
                 # Batch Insert
                 count = len(insert_data)
