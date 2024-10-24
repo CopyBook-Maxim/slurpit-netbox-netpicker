@@ -270,6 +270,28 @@ class ReconcileView(generic.ObjectListView):
                 action = 'Updated'
                 
                 interface_fields = ['name', 'label','description', 'device', 'module', 'type', 'duplex', 'speed']
+                
+                initial_obj = SlurpitInterface.objects.filter(name='').values(
+                    'ignore_module', 'ignore_type', 'ignore_speed', 'ignore_duplex'
+                ).first()
+                interface_update_ignore_values = []
+
+                if initial_obj:
+                    initial_interface_values = {**initial_obj}
+
+                    for key in initial_interface_values.keys():
+                        if initial_interface_values[key]:
+                            interface_update_ignore_values.append(key)
+
+                updated_fields = ['label', 'speed', 'description', 'type', 'duplex', 'module']
+                fields_to_remove = []
+                
+                for field in updated_fields:
+                    ignore_field = f'ignore_{field}'
+                    if ignore_field in interface_update_ignore_values:
+                        fields_to_remove.append(field)
+                
+                interface_fields = list(set(interface_fields) - set(fields_to_remove))
 
                 incomming_queryset = SlurpitInterface.objects.filter(pk=pk)
                 incomming_obj = incomming_queryset.values(*interface_fields).first()
@@ -318,6 +340,29 @@ class ReconcileView(generic.ObjectListView):
                 action = 'Updated'
                 
                 prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'site', 'role', 'description']
+
+                initial_obj = SlurpitPrefix.objects.filter(prefix=None).values(
+                    'ignore_status', 'ignore_vrf', 'ignore_role', 'ignore_site', 'ignore_vlan', 'ignore_tenant', 'ignore_description'
+                ).first()
+
+                prefix_update_ignore_values = []
+
+                if initial_obj:
+                    initial_prefix_values = {**initial_obj}
+
+                    for key in initial_prefix_values.keys():
+                        if initial_prefix_values[key]:
+                            prefix_update_ignore_values.append(key)
+
+                updated_fields = ['status', 'tenant', 'description', 'role', 'vlan', 'site']
+                fields_to_remove = []
+                
+                for field in updated_fields:
+                    ignore_field = f'ignore_{field}'
+                    if ignore_field in prefix_update_ignore_values:
+                        fields_to_remove.append(field)
+
+                prefix_fields = list(set(prefix_fields) - set(fields_to_remove))
 
                 incomming_queryset = SlurpitPrefix.objects.filter(pk=pk)
                 incomming_change = incomming_queryset.values(*prefix_fields).first()
@@ -369,6 +414,28 @@ class ReconcileView(generic.ObjectListView):
 
                 vlan_fields = ['name', 'group', 'vid', 'status', 'role', 'tenant', 'description']
 
+                initial_obj = SlurpitVLAN.objects.filter(name='').values(
+                    'ignore_status', 'ignore_role', 'ignore_tenant', 'ignore_description'
+                ).first()
+                vlan_update_ignore_values = []
+
+                if initial_obj:
+                    initial_vlan_values = {**initial_obj}
+
+                    for key in initial_vlan_values.keys():
+                        if initial_vlan_values[key]:
+                            vlan_update_ignore_values.append(key)
+
+                updated_fields = ['status', 'role', 'tenant', 'description', 'name']
+                fields_to_remove = []
+                
+                for field in updated_fields:
+                    ignore_field = f'ignore_{field}'
+                    if ignore_field in vlan_update_ignore_values:
+                        fields_to_remove.append(field)
+
+                vlan_fields = list(set(vlan_fields) - set(fields_to_remove))
+
                 incomming_queryset = SlurpitVLAN.objects.filter(pk=pk)
                 incomming_obj = incomming_queryset.values(*vlan_fields).first()
 
@@ -410,6 +477,29 @@ class ReconcileView(generic.ObjectListView):
                 action = 'Updated'
 
                 ipam_fields = ['address', 'status', 'dns_name', 'description', 'vrf', 'tenant', 'role']
+
+                initial_obj = SlurpitInitIPAddress.objects.filter(address=None).values(
+                    'ignore_status', 'ignore_vrf', 'ignore_tenant', 'ignore_role', 'ignore_description'
+                ).first()
+
+                ipaddress_update_ignore_values = []
+
+                if initial_obj:
+                    initial_ipaddress_values = {**initial_obj}
+
+                    for key in initial_ipaddress_values.keys():
+                        if initial_ipaddress_values[key]:
+                            ipaddress_update_ignore_values.append(key)
+
+                updated_fields = ['status', 'role', 'tenant', 'dns_name', 'description']
+                fields_to_remove = []
+                
+                for field in updated_fields:
+                    ignore_field = f'ignore_{field}'
+                    if ignore_field in ipaddress_update_ignore_values:
+                        fields_to_remove.append(field)
+
+                ipam_fields = list(set(ipam_fields) - set(fields_to_remove))
 
                 incomming_queryset = SlurpitInitIPAddress.objects.filter(pk=pk)
                 incomming_obj = incomming_queryset.values(*ipam_fields).first()
