@@ -218,7 +218,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     # Update Site           
                     defaults = get_default_objects()
                     site = defaults['site']
-                    if obj.site is not None and site != "":
+                    if obj.site is not None and obj.site != "":
                         site = Site.objects.get(name=obj.site)
                     device.site = site
 
@@ -248,7 +248,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     # Update Site           
                     defaults = get_default_objects()
                     site = defaults['site']
-                    if obj.site is not None and site != "":
+                    if obj.site is not None and obj.site != "":
                         site = Site.objects.get(name=obj.site)
                     device.site = site
 
@@ -315,7 +315,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     # Update Site           
                     defaults = get_default_objects()
                     site = defaults['site']
-                    if obj.site is not None and site != "":
+                    if obj.site is not None and obj.site != "":
                         site = Site.objects.get(name=obj.site)
                     device.site = site
 
@@ -357,7 +357,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     # Update Site           
                     defaults = get_default_objects()
                     site = defaults['site']
-                    if obj.site is not None and site != "":
+                    if obj.site is not None and obj.site != "":
                         site = Site.objects.get(name=obj.site)
                     device.site = site
 
