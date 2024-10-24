@@ -33,7 +33,7 @@ from ..validator import (
     prefix_validator,
     vlan_validator
 )
-from ..importer import process_import, import_devices, import_plannings, start_device_import, BATCH_SIZE
+from ..importer import process_import, import_devices, import_plannings, start_device_import, BATCH_SIZE, sync_sites
 from ..management.choices import *
 from ..views.datamapping import get_device_dict
 from ..references import base_name 
@@ -237,6 +237,7 @@ class DeviceViewSet(
         if len(request.data) != 1:
             return JsonResponse({'status': 'error', 'errors': ['List size should be 1']}, status=400)
         
+        sync_sites()
         start_device_import()
         import_devices(request.data)
         process_import(delete=False)
@@ -248,7 +249,7 @@ class DeviceViewSet(
         errors = device_validator(request.data)
         if errors:
             return JsonResponse({'status': 'error', 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
-
+        
         ids = [obj['id'] for obj in request.data]
         hostnames = [obj['hostname'] for obj in request.data]
         SlurpitStagedDevice.objects.filter(Q(hostname__in=hostnames) | Q(slurpit_id__in=ids)).delete()
@@ -257,6 +258,7 @@ class DeviceViewSet(
 
     @action(detail=False, methods=['post'],  url_path='sync_start')
     def sync_start(self, request):
+        sync_sites()
         threshold = timezone.now() - timedelta(days=1)
         SlurpitStagedDevice.objects.filter(createddate__lt=threshold).delete()
         return JsonResponse({'status': 'success'})
@@ -378,7 +380,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
                     else:
                         record['enabled'] = False
                     del record['status']
-                    
+
                 new_data = {**initial_interface_values, **record}
                 total_data.append(new_data)
        
