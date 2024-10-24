@@ -220,7 +220,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     site = defaults['site']
                     if obj.site is not None and obj.site != "":
                         site = Site.objects.get(name=obj.site)
-                    device.site = site
+                        device.site = site
 
                     device.save()
 
@@ -250,7 +250,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     site = defaults['site']
                     if obj.site is not None and obj.site != "":
                         site = Site.objects.get(name=obj.site)
-                    device.site = site
+                        device.site = site
 
                     device.device_type = get_create_dcim_objects(obj)
                     
@@ -317,7 +317,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     site = defaults['site']
                     if obj.site is not None and obj.site != "":
                         site = Site.objects.get(name=obj.site)
-                    device.site = site
+                        device.site = site
 
                     device.save()
                     obj.save()
@@ -359,7 +359,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     site = defaults['site']
                     if obj.site is not None and obj.site != "":
                         site = Site.objects.get(name=obj.site)
-                    device.site = site
+                        device.site = site
 
                     device.save()
                     obj.save()
