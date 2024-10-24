@@ -372,6 +372,13 @@ class SlurpitInterfaceView(SlurpitViewSet):
                 record['device'] = device
                 del record['hostname']
                 
+                if 'status' in record:
+                    if record['status'] == 'up':
+                        record['enabled'] = True
+                    else:
+                        record['enabled'] = False
+                    del record['status']
+                    
                 new_data = {**initial_interface_values, **record}
                 total_data.append(new_data)
        
