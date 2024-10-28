@@ -79,13 +79,18 @@ def create_sites(data):
         if item['longitude'] == '':
             item['longitude'] = None
 
+        if item['status'] == '1':
+            status = 'active'
+        else:
+            status = 'retired'
+
         # Prepare data for the Site instance
         site_data = {
             'description': item['description'],
             'longitude': item['longitude'],
             'latitude': item['latitude'],
             'slug': slug_string(item['sitename'], ti),
-            'status': 'active',
+            'status': status,
             'physical_address': address,
             'shipping_address': address,
         }
