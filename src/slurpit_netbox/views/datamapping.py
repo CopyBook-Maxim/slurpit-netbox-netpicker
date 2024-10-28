@@ -206,8 +206,9 @@ class DataMappingView(View):
                     target_field = obj.target_field.split('|')[1]
                     row[obj.source_field] = str(device[target_field]) if device[target_field] is not None else None
                     
-                    if obj.source_field == 'ipv4' or obj.source_field == 'fqdn':
-                        row[obj.source_field] = row[obj.source_field].split('/')[0]
+                    if row[obj.source_field] is not None:
+                        if obj.source_field == 'ipv4' or obj.source_field == 'fqdn' :
+                            row[obj.source_field] = row[obj.source_field].split('/')[0]
                     
                 if test is not None:
                     res = post_slurpit_device(row, device["name"])
