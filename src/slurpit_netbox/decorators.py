@@ -16,7 +16,6 @@ def slurpit_plugin_registered(view_func):
             'plugins/slurpit/devices/',
             'plugins/slurpit/data_mapping/',
             'plugins/slurpit/reconcile/',
-            'plugins/slurpit/slurpitlog/'
         ]
 
         for path in paths:

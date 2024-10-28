@@ -24,7 +24,7 @@ from utilities.paginator import EnhancedPaginator, get_paginate_count
 
 from ..forms import SlurpitPlanningTableForm, SlurpitApplianceTypeForm
 from ..models import (
-    create_default_data_mapping, SlurpitSetting, SlurpitLog, SlurpitPlanning, 
+    create_default_data_mapping, SlurpitSetting, SlurpitPlanning, 
     SlurpitSnapshot, SlurpitImportedDevice, SlurpitStagedDevice, 
     SlurpitInitIPAddress, SlurpitInterface, SlurpitPrefix, SlurpitVLAN
 )
@@ -59,7 +59,6 @@ class SettingsView(View):
             SlurpitImportedDevice.objects.all().delete()
             SlurpitStagedDevice.objects.all().delete()
             SlurpitSnapshot.objects.all().delete()
-            SlurpitLog.objects.all().delete()
             SlurpitSetting.objects.all().delete()
             SlurpitPlanning.objects.all().delete()
             SlurpitInitIPAddress.objects.all().delete()
@@ -196,14 +195,12 @@ class SettingsView(View):
             test_param = request.GET.get('test',None)
             if test_param =='test':
                 if setting is None:
-                    SlurpitLog.failure(category=LogCategoryChoices.SETTING, message="Slurpit API test is failded.")
                     messages.warning(request, "You can not test. To use the Slurp'it plugin you should first configure the server settings. Go to settings and configure the Slurp'it server in the parameter section.")
                 else:
                     connection_status = self.connection_test(request, server_url, api_key)
                     setting.connection_status = connection_status
                     setting.save()
-                    SlurpitLog.info(category=LogCategoryChoices.SETTING, message=f"Slurpit API's test result is {connection_status}.")
-
+                    
             action_param = request.GET.get('action',None)
             if action_param == 'generate':
                 if setting is None:
@@ -216,8 +213,6 @@ class SettingsView(View):
                 setting.push_api_key = push_api_key
                 setting.save()
 
-                SlurpitLog.info(category=LogCategoryChoices.SETTING, message=f"Slurpit Push API is generated.")
-        
         debug = settings.DEBUG
         return render(
             request,
@@ -256,7 +251,6 @@ class SettingsView(View):
                 messages.success(request, "Updated the settings parameter successfully.")
             obj.save()
             
-            SlurpitLog.objects.create(level=LogLevelChoices.LOG_SUCCESS, category=LogCategoryChoices.SETTING, message=log_message)
         else:
             plans = request.POST.getlist('pk')
             total_planning_ids = []
@@ -286,21 +280,16 @@ class SettingsView(View):
             r = response.json()
         except Exception as e:
             messages.error(request, "Please confirm the Slurp'it server is running and reachable.")
-            log_message ="Failed testing the connection to the Slurp'it server."          
-            SlurpitLog.objects.create(level=LogLevelChoices.LOG_FAILURE, category=LogCategoryChoices.SETTING, message=log_message)
+            
             return "not connected"
         
         if response.status_code == 200:
             r = response.json()
             if r.get('status') == "up":
-                log_message ="Tested the connection to the Slurp'it server successfully."        
-                SlurpitLog.objects.create(level=LogLevelChoices.LOG_SUCCESS, category=LogCategoryChoices.SETTING, message=log_message)
                 messages.success(request, "Tested the connection to the Slurp'it server successfully.")
             return 'connected'
         else:
             messages.error(request, "Failed testing the connection to the Slurp'it server.")
-            log_message ="Failed testing the connection to the Slurp'it server."          
-            SlurpitLog.objects.create(level=LogLevelChoices.LOG_FAILURE, category=LogCategoryChoices.SETTING, message=log_message)
             return "not connected"
     
     def get_planning_list(self, request, server_url, api_key):
@@ -313,8 +302,6 @@ class SettingsView(View):
             response = requests.get(f"{server_url}/api/planning", headers=headers, timeout=15, verify=False)
         except Exception as e:
             messages.error(request, "Please confirm the Slurp'it server is running and reachable.")
-            log_message ="Failed to get planning list of the Slurp'it server."          
-            SlurpitLog.failure(category=LogCategoryChoices.SETTING, message=log_message)
             return []
         
         if response.status_code == 200:
@@ -497,8 +484,7 @@ def sync_snapshot(cache_key, device_name, plan, test=False, data={}):
         
         if temp is not None:
             count = SlurpitSnapshot.objects.filter(hostname=device_name, planning_id=plan.planning_id).delete()[0]
-            SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Sync deleted {count} snapshots for planning {plan.name}")
-
+            
         new_items = []
         for item in temp:
             content = json.dumps(item, cls=OrderedEncoder)
@@ -511,4 +497,3 @@ def sync_snapshot(cache_key, device_name, plan, test=False, data={}):
             new_items.append(SlurpitSnapshot(hostname=device_name, planning_id=plan.planning_id, content=content, result_type="template_result"))
         
         SlurpitSnapshot.objects.bulk_create(new_items, batch_size=BATCH_SIZE, ignore_conflicts=True)
-        SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Sync imported {len(new_items)} snapshots for planning {plan.name}")

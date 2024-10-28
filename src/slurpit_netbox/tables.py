@@ -9,7 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from netbox.tables import NetBoxTable, ToggleColumn, columns
 from dcim.models import  Device, Interface
 from dcim.tables import BaseInterfaceTable
-from .models import SlurpitImportedDevice, SlurpitLog, SlurpitInitIPAddress, SlurpitInterface, SlurpitPrefix, SlurpitVLAN
+from .models import SlurpitImportedDevice, SlurpitInitIPAddress, SlurpitInterface, SlurpitPrefix, SlurpitVLAN
 from tenancy.tables import TenancyColumnsMixin, TenantColumn
 from ipam.models import IPAddress, Prefix, VLAN
 
@@ -213,24 +213,6 @@ class MigratedDeviceTable(NetBoxTable):
             return value
         link = LinkTransform(attrs=self.attrs.get("a", {}), accessor=Accessor("mapped_devicetype"))
         return mark_safe(f'<span>{greenLink(link(escape(value), value=escape(value), record=record, bound_column=bound_column))}<br/>{escape(record.mapped_device.custom_field_data["slurpit_devicetype"])}</span>') #nosec 
-
-class LoggingTable(NetBoxTable):
-    actions = columns.ActionsColumn(actions=tuple())
-    level = tables.Column()
-    class Meta(NetBoxTable.Meta):
-        model = SlurpitLog
-        fields = ( 'pk', 'id', 'log_time', 'level', 'category', 'message', 'last_updated')
-        default_columns = ('log_time', 'level', 'category', 'message')
-    
-    def render_level(self, value, record):
-        badge_class = {
-            'Info': 'badge text-bg-blue',
-            'Success': 'badge text-bg-green',
-            'Failure': 'badge text-bg-red',
-            # Add more mappings for other levels as needed
-        }.get(escape(value), 'badge bg-secondary')  # Default to secondary if level is not recognized
-        
-        return mark_safe(f'<span class="{badge_class}">{escape(value)}</span>') #nosec 
     
 class SlurpitPlanningTable(tables.Table):
 

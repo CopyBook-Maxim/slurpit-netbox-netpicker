@@ -2,7 +2,6 @@ from django.views.generic import View
 from ..models import (
     SlurpitImportedDevice, 
     SlurpitMapping, 
-    SlurpitLog, 
     SlurpitSetting, 
     SlurpitInitIPAddress, 
     SlurpitInterface, 
@@ -71,9 +70,7 @@ def post_slurpit_device(row, device_name):
 
     except ObjectDoesNotExist:
         setting = None
-        log_message = "Need to set the setting parameter"
-        SlurpitLog.failure(category=LogCategoryChoices.DATA_MAPPING, message=log_message)
-
+        
         return {"error": "Need to set the setting parameter", "device_name": device_name}
     
     return None
@@ -230,11 +227,9 @@ class DataMappingView(View):
                 try:
                     obj= SlurpitMapping.objects.create(source_field=source_field, target_field=target_field)
                     log_message =f'Added a mapping  which {source_field} field converts to {target_field} field.'      
-                    SlurpitLog.objects.create(level=LogLevelChoices.LOG_SUCCESS, category=LogCategoryChoices.DATA_MAPPING, message=log_message)
                     messages.success(request, log_message)
                 except Exception as e:
                     log_message =f'Failted to add a mapping which {source_field} field converts to {target_field} field.'      
-                    SlurpitLog.objects.create(level=LogLevelChoices.LOG_FAILURE, category=LogCategoryChoices.DATA_MAPPING, message=log_message)
                     messages.error(request, log_message)
                     pass
                 

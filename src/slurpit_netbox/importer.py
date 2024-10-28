@@ -10,7 +10,7 @@ from django.db.models.expressions import RawSQL
 from django.utils.text import slugify
 
 from . import get_config
-from .models import SlurpitImportedDevice, SlurpitStagedDevice, ensure_slurpit_tags, SlurpitLog, SlurpitSetting, SlurpitPlanning, SlurpitSnapshot
+from .models import SlurpitImportedDevice, SlurpitStagedDevice, ensure_slurpit_tags, SlurpitSetting, SlurpitPlanning, SlurpitSnapshot
 from .management.choices import *
 from .references import base_name, plugin_type, custom_field_data_name
 from .references.generic import get_default_objects, status_inventory, status_offline, get_create_dcim_objects, set_device_custom_fields
@@ -35,13 +35,9 @@ def get_devices(offset):
         r = requests.get(uri_devices, headers=headers, timeout=15, verify=False)
         # r.raise_for_status()
         data = r.json()
-        log_message = f"Syncing the devices from Slurp'it in {plugin_type.capitalize()}."
-        SlurpitLog.info(category=LogCategoryChoices.ONBOARD, message=log_message)
         return data, ""
     except ObjectDoesNotExist:
         setting = None
-        log_message = "Need to set the setting parameter"
-        SlurpitLog.failure(category=LogCategoryChoices.ONBOARD, message=log_message)
         return None, log_message
     except Exception as e:
         log_message = "Please confirm the Slurp'it server is running and reachable."
@@ -66,8 +62,6 @@ def sync_sites():
         uri_sites = f"{uri_base}/api/sites"
         r = requests.get(uri_sites, headers=headers, timeout=15, verify=False)
         data = r.json()
-        log_message = f"Syncing the devices from Slurp'it in {plugin_type.capitalize()}."
-        SlurpitLog.info(category=LogCategoryChoices.ONBOARD, message=log_message)
         
         # Import Slurpit Sites to NetBox
         for item in data:
@@ -105,8 +99,6 @@ def sync_sites():
         return data, ""
     except ObjectDoesNotExist:
         setting = None
-        log_message = "Need to set the setting parameter"
-        SlurpitLog.failure(category=LogCategoryChoices.ONBOARD, message=log_message)
         return None, log_message
     except Exception as e:
         log_message = "Please confirm the Slurp'it server is running and reachable."
@@ -118,7 +110,6 @@ def import_devices(devices):
         # if device.get('disabled') == '1':
         #     continue
         if device.get('device_type') is None:
-            SlurpitLog.failure(category=LogCategoryChoices.ONBOARD, message=f"Missing device type, cannot import device {device.get('hostname')}")
             continue
         device['slurpit_id'] = device.pop('id')
         
@@ -126,12 +117,10 @@ def import_devices(devices):
             device['createddate'] = timezone.make_aware(datetime.strptime(device['createddate'], '%Y-%m-%d %H:%M:%S'), timezone.get_current_timezone())
             device['changeddate'] = timezone.make_aware(datetime.strptime(device['changeddate'], '%Y-%m-%d %H:%M:%S'), timezone.get_current_timezone())          
         except ValueError:
-            SlurpitLog.failure(category=LogCategoryChoices.ONBOARD, message=f"Failed to convert to datetime, cannot import {device.get('hostname')}")
             continue
         to_insert.append(SlurpitStagedDevice(**{key: value for key, value in device.items() if key in columns}))
     SlurpitStagedDevice.objects.bulk_create(to_insert)
-    SlurpitLog.info(category=LogCategoryChoices.ONBOARD, message=f"Sync staged {len(to_insert)} devices")
-
+    
 
 def process_import(delete=True):
     if delete:
@@ -139,9 +128,6 @@ def process_import(delete=True):
     handle_changed()
     handle_new_comers()
     
-    SlurpitLog.success(category=LogCategoryChoices.ONBOARD, message="Sync job completed.")
-
-
 def run_import():
     devices = get_devices()
     if devices is not None:
@@ -168,7 +154,6 @@ def handle_parted():
         #     device.mapped_device.status=status_offline()
         #     device.mapped_device.save()
         count += 1
-    SlurpitLog.info(category=LogCategoryChoices.ONBOARD, message=f"Sync parted {count} devices")
     
 
 def handle_new_comers():
@@ -189,8 +174,7 @@ def handle_new_comers():
         SlurpitImportedDevice.objects.bulk_create(to_import, ignore_conflicts=True)
         offset += BATCH_SIZE
 
-    SlurpitLog.info(category=LogCategoryChoices.ONBOARD, message=f"Sync imported {count} devices")
-
+    
 def handle_changed():
     latest_changeddate_subquery = SlurpitImportedDevice.objects.filter(
         slurpit_id=OuterRef('slurpit_id')
@@ -255,8 +239,6 @@ def handle_changed():
 
                 result.mapped_device.save()
         offset += BATCH_SIZE
-
-    SlurpitLog.info(category=LogCategoryChoices.ONBOARD, message=f"Sync updated {count} devices")
 
 def import_from_queryset(qs: QuerySet, **extra):
     count = len(qs)
@@ -383,12 +365,10 @@ def get_latest_data_on_planning(hostname, planning_id):
 
         data = r.json()
         log_message = f"Get the latest data from Slurp'it in {plugin_type.capitalize()} on planning ID."
-        SlurpitLog.info(category=LogCategoryChoices.ONBOARD, message=log_message)
         return data
     except ObjectDoesNotExist:
         setting = None
         log_message = "Need to set the setting parameter"
-        SlurpitLog.failure(category=LogCategoryChoices.ONBOARD, message=log_message)
         return None
 
 def import_plannings(plannings, delete=True):
@@ -398,10 +378,8 @@ def import_plannings(plannings, delete=True):
         if delete:
             count = SlurpitPlanning.objects.exclude(planning_id__in=ids.keys()).delete()[0]
             SlurpitSnapshot.objects.filter(planning_id__in=ids.keys()).delete()
-            SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Api parted {count} plannings")
-    
+            
         update_objects = SlurpitPlanning.objects.filter(planning_id__in=ids.keys())
-        SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Api updated {update_objects.count()} plannings")
         for planning in update_objects:
             obj = ids.pop(str(planning.planning_id))
             planning.name = obj['name']
@@ -413,5 +391,3 @@ def import_plannings(plannings, delete=True):
             to_save.append(SlurpitPlanning(name=obj['name'], comments=obj['comment'], planning_id=obj['id']))
         SlurpitPlanning.objects.bulk_create(to_save)
         
-        SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Api imported {len(to_save)} plannings")
-        SlurpitLog.success(category=LogCategoryChoices.PLANNING, message=f"Sync job completed.")

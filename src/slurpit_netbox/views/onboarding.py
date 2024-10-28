@@ -15,7 +15,7 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils.text import slugify
 
 from .. import get_config, forms, importer, models, tables
-from ..models import SlurpitImportedDevice, SlurpitLog, SlurpitSetting
+from ..models import SlurpitImportedDevice, SlurpitSetting
 from ..management.choices import *
 from ..importer import get_dcim_device, import_from_queryset, run_import, get_devices, BATCH_SIZE, import_devices, process_import, start_device_import, sync_sites
 from ..decorators import slurpit_plugin_registered
@@ -155,7 +155,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
             if len(pk_list) == 0:
                 messages.warning(request, "No {} were selected.".format(model._meta.verbose_name_plural))
                 log_message = "Failed to remove since no devices were selected."
-                SlurpitLog.objects.create(level=LogLevelChoices.LOG_FAILURE, category=LogCategoryChoices.ONBOARD, message=log_message)
+                
             else:
                 if 'onboarded' in request.GET:
                     for onboarded_item in self.queryset:
@@ -239,9 +239,6 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
 
                     device.save()
 
-                    log_message = f"Migration of onboarded device - {obj.hostname} successfully updated."
-                    SlurpitLog.success(category=LogCategoryChoices.ONBOARD, message=log_message)
-                
                 msg = f'Migration is done successfully.'
                 messages.success(self.request, msg)
 
@@ -307,9 +304,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         device.primary_ip4 = ipaddress
                         device.save()
 
-                    log_message = f"Migration of onboarded device - {obj.hostname} successfully updated."
-                    SlurpitLog.success(category=LogCategoryChoices.ONBOARD, message=log_message)
-                
+                    
                 msg = f'Migration is done successfully.'
                 messages.success(self.request, msg)
 
@@ -353,9 +348,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     device.save()
                     obj.save()
 
-                    log_message = f"Conflicted device resolved - {obj.hostname} successfully updated."
-                    SlurpitLog.success(category=LogCategoryChoices.ONBOARD, message=log_message)
-                
+                    
                 msg = f'Conflicts successfully resolved.'
                 messages.success(self.request, msg)
 
@@ -430,9 +423,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         device.primary_ip4 = ipaddress
                         device.save()
 
-                    log_message = f"Conflicted device resolved - {obj.hostname} successfully updated."
-                    SlurpitLog.success(category=LogCategoryChoices.ONBOARD, message=log_message)
-                
+                    
                 msg = f'Conflicts successfully resolved.'
                 messages.success(self.request, msg)
 
@@ -464,8 +455,6 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
         table = self.table(self.queryset.filter(mapped_device_id__isnull=True), orderable=False)
         if not table.rows:
             messages.warning(request, "No {} were selected.".format(model._meta.verbose_name_plural))
-            log_message = "Failed to onboard since no devices were selected."
-            SlurpitLog.objects.create(level=LogLevelChoices.LOG_FAILURE, category=LogCategoryChoices.ONBOARD, message=log_message)
             return redirect(self.get_return_url(request))
 
         return render(request, self.template_name, {
@@ -513,9 +502,6 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                 updated_objects.append(obj)
             except Exception as e:
                 return [], "fail", str(e), obj.hostname
-
-            SlurpitLog.success(category=LogCategoryChoices.ONBOARD, message=f"Onboarded device - {obj.hostname} successfully.")
-
             # Take a snapshot of change-logged models
             if hasattr(device, 'snapshot'):
                 device.snapshot()
@@ -554,8 +540,7 @@ class ImportDevices(View):
             return JsonResponse({"action": "process"})
         except requests.exceptions.RequestException as e:
             messages.error(request, "An error occured during querying Slurp'it!")
-            SlurpitLog.failure(category=LogCategoryChoices.ONBOARD, message=f"An error occured during querying Slurp'it! {e}")
-        
+            
         return JsonResponse({"action": "", "error": "ERROR"})
     
 

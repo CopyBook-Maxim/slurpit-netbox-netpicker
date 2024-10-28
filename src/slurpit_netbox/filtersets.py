@@ -2,34 +2,13 @@ import django_filters
 from core.choices import DataSourceStatusChoices
 from django.db.models import Q
 from netbox.filtersets import NetBoxModelFilterSet, BaseFilterSet
-from .models import SlurpitLog, SlurpitPlanning, SlurpitSnapshot, SlurpitImportedDevice, SlurpitInitIPAddress, SlurpitInterface, SlurpitPrefix, SlurpitVLAN
+from .models import SlurpitPlanning, SlurpitSnapshot, SlurpitImportedDevice, SlurpitInitIPAddress, SlurpitInterface, SlurpitPrefix, SlurpitVLAN
 from django.utils.translation import gettext as _
 from utilities.filters import (
     ContentTypeFilter, MultiValueCharFilter
 )
 import netaddr
 from netaddr.core import AddrFormatError
-
-class LoggingFilterSet(BaseFilterSet):
-    q = django_filters.CharFilter(
-        method='search',
-        label=_('Search'),
-    )
-
-    class Meta:
-        model = SlurpitLog
-        fields = [
-            'log_time', 'level', 'category', 'message'
-        ]
-
-    def search(self, queryset, name, value):
-        if not value.strip():
-            return queryset
-        return queryset.filter(
-            Q(level__icontains=value) | 
-            Q(category__icontains=value) |
-            Q(message__icontains=value)
-        )
 
 class SlurpitPlanningFilterSet(BaseFilterSet):
     q = django_filters.CharFilter(

@@ -1,7 +1,7 @@
 from netbox.views import generic
 from django.http import JsonResponse
 
-from ..models import SlurpitInitIPAddress, SlurpitLog, SlurpitInterface, SlurpitPrefix, SlurpitVLAN
+from ..models import SlurpitInitIPAddress, SlurpitInterface, SlurpitPrefix, SlurpitVLAN
 from .. import forms, importer, models, tables
 from ..decorators import slurpit_plugin_registered
 from django.utils.decorators import method_decorator
@@ -988,8 +988,6 @@ class ReconcileView(generic.ObjectListView):
                 else:
                     log_message = "Failed to decline since no interfaces were selected."
 
-            SlurpitLog.objects.create(level=LogLevelChoices.LOG_FAILURE, category=LogCategoryChoices.RECONCILE, message=log_message)
-        
         if tab is None:
             tab = 'ipam'
         query_params = {'tab': tab}
