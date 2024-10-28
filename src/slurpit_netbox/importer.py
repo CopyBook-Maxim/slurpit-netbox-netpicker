@@ -50,6 +50,39 @@ def start_device_import():
 def format_address(street, number, zipcode, country):
     return f"{street} {number} {zipcode} {country}"
 
+def create_sites(data):
+    for item in data:
+        # First, format the address
+        address = format_address(item['street'], item['number'], item['zipcode'], item['country'])
+        
+        if item['latitude'] == '':
+            item['latitude'] = None
+        
+        if item['longitude'] == '':
+            item['longitude'] = None
+
+        # Prepare data for the Site instance
+        site_data = {
+            'description': item['description'],
+            'longitude': item['longitude'],
+            'latitude': item['latitude'],
+            'slug': item['sitename'],
+            'status': 'active',
+            'physical_address': address,
+            'shipping_address': address,
+        }
+
+        # Update if exists, create if not
+        site, created = Site.objects.update_or_create(
+            name=item['sitename'],  # Field to match for finding the record
+            defaults=site_data       # Fields to update or set if the object is created
+        )
+
+        if created:
+            print(f"Created new site with name {item['sitename']}")
+        else:
+            print(f"Updated existing site with name {item['sitename']}")
+
 def sync_sites():
     try:
         setting = SlurpitSetting.objects.get()
@@ -64,37 +97,7 @@ def sync_sites():
         data = r.json()
         
         # Import Slurpit Sites to NetBox
-        for item in data:
-            # First, format the address
-            address = format_address(item['street'], item['number'], item['zipcode'], item['country'])
-            
-            if item['latitude'] == '':
-                item['latitude'] = None
-            
-            if item['longitude'] == '':
-                item['longitude'] = None
-
-            # Prepare data for the Site instance
-            site_data = {
-                'description': item['description'],
-                'longitude': item['longitude'],
-                'latitude': item['latitude'],
-                'slug': item['sitename'],
-                'status': 'active',
-                'physical_address': address,
-                'shipping_address': address,
-            }
-
-            # Update if exists, create if not
-            site, created = Site.objects.update_or_create(
-                name=item['sitename'],  # Field to match for finding the record
-                defaults=site_data       # Fields to update or set if the object is created
-            )
-
-            if created:
-                print(f"Created new site with name {item['sitename']}")
-            else:
-                print(f"Updated existing site with name {item['sitename']}")
+        create_sites(data)
 
         return data, ""
     except ObjectDoesNotExist:

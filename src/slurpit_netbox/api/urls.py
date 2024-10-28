@@ -11,5 +11,6 @@ router.register("interface", views.SlurpitInterfaceView)
 router.register("prefix", views.SlurpitPrefixView)
 router.register("planning", views.SlurpitPlanningViewSet)
 router.register("vlan", views.SlurpitVLANView)
+router.register("site", views.SlurpitSiteView)
 app_name = 'slurpit_netbox-api'
 urlpatterns = router.urls

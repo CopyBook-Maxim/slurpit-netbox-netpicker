@@ -136,6 +136,10 @@ class SettingsView(View):
                 },
                 {
                     "type": "POST",
+                    "url": "api/plugins/slurpit/site/"
+                },
+                {
+                    "type": "POST",
                     "url": "api/plugins/slurpit/device/sync_start/"
                 },
                 {

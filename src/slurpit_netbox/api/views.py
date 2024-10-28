@@ -33,7 +33,7 @@ from ..validator import (
     prefix_validator,
     vlan_validator
 )
-from ..importer import process_import, import_devices, import_plannings, start_device_import, BATCH_SIZE, sync_sites
+from ..importer import process_import, import_devices, import_plannings, start_device_import, create_sites, BATCH_SIZE
 from ..management.choices import *
 from ..views.datamapping import get_device_dict
 from ..references import base_name 
@@ -62,6 +62,7 @@ from ipam.forms import (
 )
 from tenancy.models import Tenant
 from django.core.cache import cache
+from dcim.api.serializers_.sites import SiteSerializer
 
 __all__ = (
     'SlurpitPlanningViewSet',
@@ -112,8 +113,7 @@ class DeviceViewSet(
             return JsonResponse({'status': 'error', 'errors': errors}, status=400)
         if len(request.data) != 1:
             return JsonResponse({'status': 'error', 'errors': ['List size should be 1']}, status=400)
-        
-        sync_sites()
+
         start_device_import()
         import_devices(request.data)
         process_import(delete=False)
@@ -134,7 +134,6 @@ class DeviceViewSet(
 
     @action(detail=False, methods=['post'],  url_path='sync_start')
     def sync_start(self, request):
-        sync_sites()
         threshold = timezone.now() - timedelta(days=1)
         SlurpitStagedDevice.objects.filter(createddate__lt=threshold).delete()
         return JsonResponse({'status': 'success'})
@@ -1190,3 +1189,17 @@ class SlurpitPlanningViewSet(
         # For other methods, use the default queryset
         return self.queryset
     
+class SlurpitSiteView(SlurpitViewSet):
+    queryset = Site.objects.all()
+    
+    def get_serializer_class(self):
+        return SiteSerializer
+    
+    def create(self, request):
+        try:
+            create_sites(request.data[::-1])
+        except Exception as e:
+            return JsonResponse({'status': 'errors', 'errors': str(e)}, status=400)
+
+        return JsonResponse({'status': 'success'})
+        
