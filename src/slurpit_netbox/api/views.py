@@ -64,6 +64,7 @@ from tenancy.models import Tenant
 from django.core.cache import cache
 
 __all__ = (
+    'SlurpitPlanningViewSet',
     'SlurpitRootView',
     'SlurpitDeviceView'
 )
@@ -1175,3 +1176,17 @@ class SlurpitVLANView(SlurpitViewSet):
         except Exception as e:
             return JsonResponse({'status': 'errors', 'errors': str(e)}, status=400)
 
+class SlurpitPlanningViewSet(
+        SlurpitViewSet
+    ):
+    queryset = SlurpitPlanning.objects.all()
+    serializer_class = SlurpitPlanningSerializer
+    filterset_class = SlurpitPlanningFilterSet
+    
+    def get_queryset(self):
+        if self.request.method == 'GET':
+            # Customize this queryset to suit your requirements for GET requests
+            return SlurpitPlanning.objects.filter(selected=True)
+        # For other methods, use the default queryset
+        return self.queryset
+    
