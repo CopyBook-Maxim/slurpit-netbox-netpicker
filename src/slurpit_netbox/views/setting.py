@@ -132,34 +132,6 @@ class SettingsView(View):
                 },
                 {
                     "type": "POST",
-                    "url": "api/plugins/slurpit/planning/"
-                },
-                {
-                    "type": "POST",
-                    "url": "api/plugins/slurpit/planning/sync/"
-                },
-                {
-                    "type": "DELETE",
-                    "url": "api/plugins/slurpit/planning/delete/{planning_id}/"
-                },
-                {
-                    "type": "DELETE",
-                    "url": "api/plugins/slurpit/planning/delete-all/"
-                },
-                {
-                    "type": "POST",
-                    "url": "api/plugins/slurpit/planning-data/"
-                },
-                {
-                    "type": "DELETE",
-                    "url": "api/plugins/slurpit/planning-data/delete-all/{hostname}/{planning_id}/"
-                },
-                {
-                    "type": "DELETE",
-                    "url": "api/plugins/slurpit/planning-data/clear/{planning_id}/"
-                },
-                {
-                    "type": "POST",
                     "url": "api/plugins/slurpit/device/"
                 },
                 {
