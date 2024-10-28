@@ -21,6 +21,23 @@ from ipam.models import IPAddress
 BATCH_SIZE = 512
 columns = ('slurpit_id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', 'createddate', 'changeddate', 'site')
 
+import re
+
+ti = 50
+def slug_string(input_string, ti):
+    # Remove all characters except hyphens, dots, word characters, and whitespace
+    cleaned_string = re.sub(r'[^\-.\w\s]', '', input_string)
+    
+    # Remove leading and trailing spaces or dots
+    cleaned_string = re.sub(r'^[\s.]+|[\s.]+$', '', cleaned_string)
+    
+    # Replace sequences of hyphens, dots, or whitespace with a single hyphen
+    cleaned_string = re.sub(r'[-.\s]+', '-', cleaned_string)
+    
+    # Convert to lowercase and truncate to length ti
+    result_string = cleaned_string.lower()[:ti]
+    
+    return result_string
 
 def get_devices(offset):
     try:
@@ -52,6 +69,7 @@ def format_address(street, number, zipcode, country):
 
 def create_sites(data):
     for item in data:
+        print(item)
         # First, format the address
         address = format_address(item['street'], item['number'], item['zipcode'], item['country'])
         
@@ -66,7 +84,7 @@ def create_sites(data):
             'description': item['description'],
             'longitude': item['longitude'],
             'latitude': item['latitude'],
-            'slug': item['sitename'],
+            'slug': slug_string(item['sitename'], ti),
             'status': 'active',
             'physical_address': address,
             'shipping_address': address,
@@ -95,7 +113,7 @@ def sync_sites():
         uri_sites = f"{uri_base}/api/sites"
         r = requests.get(uri_sites, headers=headers, timeout=15, verify=False)
         data = r.json()
-        
+
         # Import Slurpit Sites to NetBox
         create_sites(data)
 
@@ -104,6 +122,7 @@ def sync_sites():
         setting = None
         return None, log_message
     except Exception as e:
+        print(e)
         log_message = "Please confirm the Slurp'it server is running and reachable."
         return None, log_message
 
