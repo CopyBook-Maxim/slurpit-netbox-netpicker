@@ -56,20 +56,23 @@ class ConditionalLink(Column):
 class ConflictedColumn(Column):
     def render(self, value, bound_column, record):
         device = Device.objects.filter(name__iexact=record.hostname).first()
+        if device is None:
+            device = Device.objects.filter(primary_ip4__address=f'{record.ipv4}/32').first()
 
         original_value = ""
         column_name = bound_column.verbose_name
 
-        if column_name == "Manufacturer":
-            original_value = device.device_type.manufacturer
-        elif column_name == "Platform":
-            original_value = device.platform
-        else:
-            original_value = device.device_type
+        if device:
+            if column_name == "Manufacturer":
+                original_value = device.device_type.manufacturer
+            elif column_name == "Platform":
+                original_value = device.platform
+            else:
+                original_value = device.device_type
 
-            if record.mapped_devicetype_id is not None:
-                link = LinkTransform(attrs=self.attrs.get("a", {}), accessor=Accessor("mapped_devicetype"))
-                return mark_safe(f'{greenLink(link(escape(value), value=escape(value), record=record, bound_column=bound_column))}<br />{escape(original_value)}') #nosec 
+                if record.mapped_devicetype_id is not None:
+                    link = LinkTransform(attrs=self.attrs.get("a", {}), accessor=Accessor("mapped_devicetype"))
+                    return mark_safe(f'{greenLink(link(escape(value), value=escape(value), record=record, bound_column=bound_column))}<br />{escape(original_value)}') #nosec 
             
         return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_value)}</span>') #nosec 
 

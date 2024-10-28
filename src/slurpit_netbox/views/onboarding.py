@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.contenttypes.fields import GenericRel
 from django.core.exceptions import FieldDoesNotExist, ValidationError, ObjectDoesNotExist
 from django.db import transaction, connection
-from django.db.models import ManyToManyField, ManyToManyRel, F, Q
+from django.db.models import ManyToManyField, ManyToManyRel, F, Q, Func
 from django.db.models.fields.json import KeyTextTransform
 from django.utils.decorators import method_decorator
 from django.http import HttpResponse, JsonResponse
@@ -25,10 +25,25 @@ from ..references.imports import *
 from ..filtersets import SlurpitImportedDeviceFilterSet
 from dcim.models import DeviceType, Interface
 from ipam.models import IPAddress
+from django.db.models.functions import Cast, Substr
+
+class TrimCIDR(Func):
+    function = 'substring'
+    template = "%(function)s(%(expressions)s FROM 1 FOR POSITION('/' IN %(expressions)s) - 1)"
+
 
 @method_decorator(slurpit_plugin_registered, name='dispatch')
 class SlurpitImportedDeviceListView(SlurpitViewMixim, generic.ObjectListView):
-    conflicted_queryset = models.SlurpitImportedDevice.objects.filter(mapped_device_id__isnull=True, hostname__lower__in=Device.objects.values('name__lower'))
+    conflicted_queryset = models.SlurpitImportedDevice.objects.filter(
+        mapped_device_id__isnull=True
+    ).filter(
+        Q(hostname__lower__in=Device.objects.values('name__lower')) |
+        Q(ipv4__in=Device.objects.annotate(
+            primary_ip4_trimmed=TrimCIDR(Cast(F('primary_ip4__address'), output_field=models.CharField()))
+        ).filter(
+           Q(primary_ip4__address__regex=r'/32$')
+        ).values('primary_ip4_trimmed'))
+    )
     to_onboard_queryset = models.SlurpitImportedDevice.objects.filter(mapped_device_id__isnull=True).exclude(pk__in=conflicted_queryset.values('pk'))
     onboarded_queryset = models.SlurpitImportedDevice.objects.filter(mapped_device_id__isnull=False)
     migrate_queryset = models.SlurpitImportedDevice.objects.filter(
@@ -267,13 +282,20 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
 
                     # Interface
                     if obj.ipv4:
+                        address = f'{obj.ipv4}/32'
+                        #### Remove Primary IPv4 on other device
+                        other_device = Device.objects.filter(primary_ip4__address=address).first()
+                        if other_device:
+                            other_device.primary_ip4 = None
+                            other_device.save()
+
                         interface = Interface.objects.filter(device=device)
                         if interface:
                             interface = interface.first()
                         else:
                             interface = Interface.objects.create(name='management1', device=device, type='other')
 
-                        address = f'{obj.ipv4}/32'
+                        
                         ipaddress = IPAddress.objects.filter(address=address)
                         if ipaddress:
                             ipaddress = ipaddress.first()
@@ -297,9 +319,18 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
             conflic = request.GET.get('conflicted')
             if conflic == 'create':
                 Device.objects.filter(name__lower__in=self.queryset.values('hostname__lower')).delete()
+                
+                matching_ipv4s = [f"{ipv4}/32" for ipv4 in self.queryset.values_list('ipv4', flat=True).distinct()]
+                # Delete the matching Device records
+                Device.objects.filter(primary_ip4__address__in=matching_ipv4s).delete()
+
+
             elif conflic == 'update_slurpit':
                 for obj in self.queryset:
                     device = Device.objects.filter(name__iexact=obj.hostname).first()
+                    # Management IP Case
+                    if device is None:
+                        device = Device.objects.filter(primary_ip4__address=f'{obj.ipv4}/32').first()
 
                     set_device_custom_fields(device, {
                         'slurpit_hostname': obj.hostname,
@@ -331,8 +362,17 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                 return redirect(self.get_return_url(request))
             else:
                 for obj in self.queryset:
-                    device = Device.objects.filter(name__iexact=obj.hostname).first()
+                    device = Device.objects.filter(primary_ip4__address=f'{obj.ipv4}/32').first()
 
+                    if device is None: # Name Case
+                        device = Device.objects.filter(name__iexact=obj.hostname).first()
+                    else:
+                        if device.name != obj.hostname:
+                            other_device = Device.objects.filter(name__iexact=obj.hostname).first()
+                            if other_device:
+                                other_device.delete()
+                            
+                            device.name = obj.hostname
                     set_device_custom_fields(device, {
                         'slurpit_hostname': obj.hostname,
                         'slurpit_fqdn': obj.fqdn,
@@ -366,13 +406,19 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
 
                     # Interface
                     if obj.ipv4:
+                        address = f'{obj.ipv4}/32'
+                        #### Remove Primary IPv4 on other device
+                        other_device = Device.objects.filter(primary_ip4__address=address).first()
+                        if other_device:
+                            other_device.primary_ip4 = None
+                            other_device.save()
+                            
                         interface = Interface.objects.filter(device=device)
                         if interface:
                             interface = interface.first()
                         else:
                             interface = Interface.objects.create(name='management1', device=device, type='other')
 
-                        address = f'{obj.ipv4}/32'
                         ipaddress = IPAddress.objects.filter(address=address)
                         if ipaddress:
                             ipaddress = ipaddress.first()

@@ -228,13 +228,19 @@ def handle_changed():
                 })   
                 
                 if device.ipv4:
+                    address = f'{device.ipv4}/32'
+                    #### Remove Primary IPv4 on other device
+                    other_device = Device.objects.filter(primary_ip4__address=address).first()
+                    if other_device:
+                        other_device.primary_ip4 = None
+                        other_device.save()
+
                     interface = Interface.objects.filter(device=result.mapped_device)
                     if interface:
                         interface = interface.first()
                     else:
                         interface = Interface.objects.create(name='management1', device=result.mapped_device, type='other')
 
-                    address = f'{device.ipv4}/32'
                     ipaddress = IPAddress.objects.filter(address=address)
                     if ipaddress:
                         ipaddress = ipaddress.first()
@@ -323,9 +329,15 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
 
     #Interface for new device.
     if staged.ipv4:
+        address = f'{staged.ipv4}/32'
+        #### Remove Primary IPv4 on other device
+        other_device = Device.objects.filter(primary_ip4__address=address).first()
+        if other_device:
+            other_device.primary_ip4 = None
+            other_device.save()
+            
         interface, _ = Interface.objects.get_or_create(name=interface_name, device=device, defaults={'type':'other'})
         
-        address = f'{staged.ipv4}/32'
         ipaddress = IPAddress.objects.filter(address=address)
         if ipaddress:
             ipaddress = ipaddress.first()
