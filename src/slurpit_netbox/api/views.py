@@ -65,7 +65,6 @@ from tenancy.models import Tenant
 from django.core.cache import cache
 
 __all__ = (
-    'SlurpitPlanningViewSet',
     'SlurpitRootView',
     'SlurpitDeviceView'
 )
@@ -77,129 +76,6 @@ class SlurpitRootView(APIRootView):
     def get_view_name(self):
         return 'Slurpit'
     
-
-class SlurpitPlanningViewSet(
-        SlurpitViewSet
-    ):
-    queryset = SlurpitPlanning.objects.all()
-    serializer_class = SlurpitPlanningSerializer
-    filterset_class = SlurpitPlanningFilterSet
-
-    @action(detail=False, methods=['delete'], url_path='delete-all')
-    def delete_all(self, request, *args, **kwargs):
-        """
-        A custom action to delete all SlurpitPlanning objects.
-        Be careful with this operation: it cannot be undone!
-        """
-        self.queryset.delete()
-        SlurpitSnapshot.objects.all().delete()
-        SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Api deleted all snapshots and plannings")
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
-    def get_queryset(self):
-        if self.request.method == 'GET':
-            # Customize this queryset to suit your requirements for GET requests
-            return SlurpitPlanning.objects.filter(selected=True)
-        # For other methods, use the default queryset
-        return self.queryset
-    
-    @action(detail=False, methods=['delete'], url_path='delete/(?P<planning_id>[^/.]+)')
-    def delete(self, request, *args, **kwargs):
-        planning_id = kwargs.get('planning_id')
-        planning = SlurpitPlanning.objects.filter(planning_id=planning_id).first()
-        if not planning:
-            return Response(f"Unknown planning id {planning_id}", status=status.HTTP_400_BAD_REQUEST)
-
-        planning.delete()
-        count = SlurpitSnapshot.objects.filter(planning_id=planning_id).delete()[0]
-        SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Api deleted all {count} snapshots and planning {planning.name}")
-        return Response(status=status.HTTP_204_NO_CONTENT)
-        
-    @action(detail=False, methods=['post'],  url_path='sync')
-    def sync(self, request):
-        if not isinstance(request.data, list):
-            return Response("Should be a list", status=status.HTTP_400_BAD_REQUEST)
-        import_plannings(request.data)
-        return JsonResponse({'status': 'success'})
-    
-    def create(self, request):
-        if not isinstance(request.data, list):
-            return Response("Should be a list", status=status.HTTP_400_BAD_REQUEST)
-
-        import_plannings(request.data, False)        
-        return JsonResponse({'status': 'success'})
-
-class SlurpitSnapshotViewSet(
-        SlurpitViewSet,
-        BulkCreateModelMixin,
-        BulkDestroyModelMixin,
-    ):
-    queryset = SlurpitSnapshot.objects.all()
-    serializer_class = SlurpitSnapshotSerializer
-    filterset_class = SlurpitSnapshotFilterSet
-
-    @action(detail=False, methods=['delete'], url_path='delete-all/(?P<hostname>[^/.]+)/(?P<planning_id>[^/.]+)')
-    def delete_all(self, request, *args, **kwargs):
-        planning_id = kwargs.get('planning_id')
-        planning = SlurpitPlanning.objects.filter(planning_id=planning_id).first()
-        if not planning:
-            return Response(f"Unknown planning id {planning_id}", status=status.HTTP_400_BAD_REQUEST)
-            
-        hostname = kwargs.get('hostname')
-        if not hostname:
-            return Response(f"No hostname was given", status=status.HTTP_400_BAD_REQUEST)
-
-        cache_key1 = (
-                f"slurpit_plan_{planning_id}_{hostname}_template"
-            )
-        cache_key2 = (
-                f"slurpit_plan_{planning_id}_{hostname}_planning"
-            )
-        cache.delete(cache_key1)
-        cache.delete(cache_key2)
-        
-        count = SlurpitSnapshot.objects.filter(hostname=hostname, planning_id=planning_id).delete()[0]
-        SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Api deleted all {count} snapshots for planning {planning.name} and hostname {hostname}")
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
-    @action(detail=False, methods=['delete'], url_path='clear/(?P<planning_id>[^/.]+)')
-    def clear(self, request, *args, **kwargs):
-        planning_id = kwargs.get('planning_id')
-        planning = SlurpitPlanning.objects.filter(planning_id=planning_id).first()
-        if not planning:
-            return Response(f"Unknown planning id {planning_id}", status=status.HTTP_400_BAD_REQUEST)
-        count = SlurpitSnapshot.objects.filter(planning_id=planning_id).delete()[0]
-        SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Api deleted all {count} snapshots for planning {planning.name}")
-
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
-    def create(self, request):
-
-        try:
-            items = []
-            for record in request.data:
-                if record['content']['template_result']:
-                    items.append(SlurpitSnapshot(
-                        hostname=record['hostname'], 
-                        planning_id=record['planning_id'],
-                        content=record['content']['template_result'], 
-                        result_type="template_result"))
-                
-                if record['content']['planning_result']:
-                    items.append(SlurpitSnapshot(
-                        hostname=record['hostname'], 
-                        planning_id=record['planning_id'],
-                        content=record['content']['planning_result'], 
-                        result_type="planning_result"))
-            
-            SlurpitSnapshot.objects.bulk_create(items, batch_size=BATCH_SIZE, ignore_conflicts=True)
-            SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Created {len(items)} snapshots for Planning by API")
-
-            
-        except:
-            return JsonResponse({'status': 'error'}, status=500)
-
-        return JsonResponse({'status': 'success'}, status=200)
 
 class DeviceViewSet(
         SlurpitViewSet,
