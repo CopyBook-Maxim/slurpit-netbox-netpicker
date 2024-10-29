@@ -199,6 +199,10 @@ class MigratedDeviceTable(NetBoxTable):
         verbose_name = _('Platform')
     )
 
+    site = tables.Column(
+        verbose_name = _('Site')
+    )
+
     last_updated = tables.Column(
         verbose_name = _('Last seen')
     )
@@ -210,19 +214,37 @@ class MigratedDeviceTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = SlurpitImportedDevice
-        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'device_os', 'device_type', 'last_updated')
-        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'last_updated')
+        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'device_os', 'device_type', 'site', 'last_updated')
+        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'site', 'last_updated')
 
     def render_device_os(self, value, record):
-        return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(record.mapped_device.custom_field_data["slurpit_platform"])}</span>') #nosec
+        original_val = record.mapped_device.custom_field_data["slurpit_platform"]
+        if str(value) == str(original_val):
+            return mark_safe(f'<span">{escape(value)}<br/>{escape(original_val)}</span>')
+        
+        return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_val)}</span>') #nosec
+    
+    def render_site(self, value, record):
+        original_val = record.mapped_device.custom_field_data["slurpit_site"]
+        if str(value) == str(original_val):
+            return mark_safe(f'<span">{escape(value)}<br/>{escape(original_val)}</span>')
+        
+        return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_val)}</span>') #nosec
     
     def render_brand(self, value, record):
-        return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(record.mapped_device.custom_field_data["slurpit_manufacturer"])}</span>') #nosec
+        original_val = record.mapped_device.custom_field_data["slurpit_manufacturer"]
+        if str(value) == str(original_val):
+            return mark_safe(f'<span">{escape(value)}<br/>{escape(original_val)}</span>')
+        return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_val)}</span>') #nosec
     
     def render_device_type(self, value, bound_column, record):
         if record.mapped_devicetype_id is None:
             return value
         link = LinkTransform(attrs=self.attrs.get("a", {}), accessor=Accessor("mapped_devicetype"))
+
+        original_val = record.mapped_device.custom_field_data["slurpit_devicetype"]
+        if str(value) == str(original_val):
+            return mark_safe(f'<span">{escape(value)}<br/>{escape(original_val)}</span>')
         return mark_safe(f'<span>{greenLink(link(escape(value), value=escape(value), record=record, bound_column=bound_column))}<br/>{escape(record.mapped_device.custom_field_data["slurpit_devicetype"])}</span>') #nosec 
     
 class SlurpitPlanningTable(tables.Table):

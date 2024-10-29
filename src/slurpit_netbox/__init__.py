@@ -8,7 +8,7 @@ class SlurpitConfig(PluginConfig):
     name = "slurpit_netbox"
     verbose_name = "Slurp'it Plugin"
     description = "Sync Slurp'it into NetBox"
-    version = '1.0.23'
+    version = '1.0.24'
     base_url = "slurpit"   
     default_settings = {
         'DeviceType': {'model': "Slurp'it", 'slug': 'slurpit'},
