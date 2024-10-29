@@ -67,6 +67,10 @@ class ConflictedColumn(Column):
                 original_value = device.device_type.manufacturer
             elif column_name == "Platform":
                 original_value = device.platform
+            elif column_name == "IPv4":
+                if device.primary_ip4:
+                    original_value = str(device.primary_ip4.address)
+                    original_value = original_value.split("/")[0]
             else:
                 original_value = device.device_type
 
@@ -164,14 +168,18 @@ class ConflictDeviceTable(NetBoxTable):
         verbose_name = _('Platform')
     )
 
+    ipv4 = ConflictedColumn(
+        verbose_name = _('IPv4')
+    )
+
     last_updated = tables.Column(
         verbose_name = _('Last seen')
     )
 
     class Meta(NetBoxTable.Meta):
         model = SlurpitImportedDevice
-        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'device_os', 'device_type', 'last_updated')
-        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'last_updated')
+        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'device_os', 'device_type', 'ipv4', 'last_updated')
+        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'last_updated')
 
 
 class MigratedDeviceTable(NetBoxTable):
