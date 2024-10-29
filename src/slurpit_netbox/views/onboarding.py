@@ -335,7 +335,11 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         'slurpit_devicetype': obj.device_type,
                         'slurpit_ipv4': obj.ipv4,
                         'slurpit_site': obj.site
-                    })      
+                    })     
+                    other_imported_device = SlurpitImportedDevice.objects.filter(mapped_device=device).first()
+                    if other_imported_device:
+                        other_imported_device.delete()
+
                     obj.mapped_device = device    
                     
                     # Update Site           
@@ -374,7 +378,12 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         'slurpit_devicetype': obj.device_type,
                         'slurpit_ipv4': obj.ipv4,
                         'slurpit_site': obj.site
-                    })      
+                    })    
+                      
+                    other_imported_device = SlurpitImportedDevice.objects.filter(mapped_device=device).first()
+                    if other_imported_device:
+                        other_imported_device.delete()
+
                     obj.mapped_device = device    
 
                     device.device_type = get_create_dcim_objects(obj)
