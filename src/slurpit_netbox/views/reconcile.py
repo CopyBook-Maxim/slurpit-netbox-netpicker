@@ -653,7 +653,8 @@ class ReconcileView(generic.ObjectListView):
                                     type = item.type,
                                     description = item.description,
                                     duplex = item.duplex,
-                                    module = item.module
+                                    module = item.module,
+                                    enabled = item.enabled
                             ))
                             batch_insert_ids.append(item.pk)
                         

@@ -248,7 +248,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
                     continue
                 record['device'] = device
                 del record['hostname']
-                
+
                 if 'status' in record:
                     if record['status'] == 'up':
                         record['enabled'] = True
@@ -278,7 +278,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
 
                         # Update
                         allowed_fields_with_none = {}
-                        allowed_fields = {'duplex', 'label', 'description', 'speed', 'type', 'module'}
+                        allowed_fields = {'duplex', 'label', 'description', 'speed', 'type', 'module', 'enabled'}
                         update = False
                         for field, value in item.items():
                             current = getattr(slurpit_interface_item, field, None)
@@ -293,8 +293,8 @@ class SlurpitInterfaceView(SlurpitViewSet):
                             batch_update_qs.append(slurpit_interface_item)
                     else:
                         obj = Interface.objects.filter(name=item['name'], device=item['device'])
-                        fields = {'label', 'device', 'module', 'type', 'duplex', 'speed', 'description'}
-                        not_null_fields = {'label', 'device', 'module', 'type', 'duplex', 'speed', 'description'}
+                        fields = {'label', 'device', 'module', 'type', 'duplex', 'speed', 'description', 'enabled'}
+                        not_null_fields = {'label', 'device', 'module', 'type', 'duplex', 'speed', 'description', 'enabled'}
 
                         new_interface = {}
                         if obj:
