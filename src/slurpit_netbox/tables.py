@@ -76,8 +76,11 @@ class ConflictedColumn(Column):
 
                 if record.mapped_devicetype_id is not None:
                     link = LinkTransform(attrs=self.attrs.get("a", {}), accessor=Accessor("mapped_devicetype"))
-                    return mark_safe(f'{greenLink(link(escape(value), value=escape(value), record=record, bound_column=bound_column))}<br />{escape(original_value)}') #nosec 
-            
+                    if str(original_value) != str(value):
+                        return mark_safe(f'{greenLink(link(escape(value), value=escape(value), record=record, bound_column=bound_column))}<br />{escape(original_value)}') #nosec 
+        
+        if str(original_value) == str(value):
+            return mark_safe(f'<span>{escape(value)}<br/>{escape(original_value)}</span>')
         return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_value)}</span>') #nosec 
 
 
