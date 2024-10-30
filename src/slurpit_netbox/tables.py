@@ -52,7 +52,7 @@ class ConditionalLink(Column):
             
             original_value = ""
             original_device = Device.objects.filter(name__iexact=record.hostname).first()
-            if original_device is None:
+            if original_device is None and record.ipv4:
                 original_device = Device.objects.filter(primary_ip4__address=f'{record.ipv4}/32').first()
 
             if original_device:
@@ -60,9 +60,13 @@ class ConditionalLink(Column):
 
             if str(original_value) == str(value):
                 return mark_safe(f'<span>{escape(value)}<br/>{escape(original_value)}</span>')
-            return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_value)}</span>')
+            
+            if original_device:
+                return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_value)}</span>')
+            else:
+                return value
     
-            return value
+            
         link = LinkTransform(attrs=self.attrs.get("a", {}), accessor=Accessor("mapped_device"))
         return link(value, value=value, record=record, bound_column=bound_column)
 
