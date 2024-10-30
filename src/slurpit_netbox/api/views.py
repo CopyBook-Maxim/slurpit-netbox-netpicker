@@ -33,7 +33,7 @@ from ..validator import (
     prefix_validator,
     vlan_validator
 )
-from ..importer import process_import, import_devices, import_plannings, start_device_import, create_sites, BATCH_SIZE
+from ..importer import process_import, import_devices, import_plannings, start_device_import, create_sites, sync_sites, BATCH_SIZE
 from ..management.choices import *
 from ..views.datamapping import get_device_dict
 from ..references import base_name 
@@ -108,6 +108,7 @@ class DeviceViewSet(
         return Response(status=status.HTTP_204_NO_CONTENT)
     
     def create(self, request):
+        sync_sites()
         errors = device_validator(request.data)
         if errors:
             return JsonResponse({'status': 'error', 'errors': errors}, status=400)
@@ -134,6 +135,7 @@ class DeviceViewSet(
 
     @action(detail=False, methods=['post'],  url_path='sync_start')
     def sync_start(self, request):
+        sync_sites()
         threshold = timezone.now() - timedelta(days=1)
         SlurpitStagedDevice.objects.filter(createddate__lt=threshold).delete()
         return JsonResponse({'status': 'success'})
