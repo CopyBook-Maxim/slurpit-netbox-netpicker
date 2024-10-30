@@ -10,7 +10,7 @@ from django.db.models.expressions import RawSQL
 from django.utils.text import slugify
 
 from . import get_config
-from .models import SlurpitImportedDevice, SlurpitStagedDevice, ensure_slurpit_tags, SlurpitLog, SlurpitSetting, SlurpitPlanning, SlurpitSnapshot
+from .models import SlurpitImportedDevice, SlurpitStagedDevice, ensure_slurpit_tags, SlurpitSetting, SlurpitPlanning, SlurpitSnapshot
 from .management.choices import *
 from .references import base_name, plugin_type, custom_field_data_name
 from .references.generic import get_default_objects, status_inventory, status_offline, get_create_dcim_objects, set_device_custom_fields
@@ -21,6 +21,23 @@ from ipam.models import IPAddress
 BATCH_SIZE = 512
 columns = ('slurpit_id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', 'createddate', 'changeddate', 'site')
 
+import re
+
+ti = 50
+def slug_string(input_string, ti):
+    # Remove all characters except hyphens, dots, word characters, and whitespace
+    cleaned_string = re.sub(r'[^\-.\w\s]', '', input_string)
+    
+    # Remove leading and trailing spaces or dots
+    cleaned_string = re.sub(r'^[\s.]+|[\s.]+$', '', cleaned_string)
+    
+    # Replace sequences of hyphens, dots, or whitespace with a single hyphen
+    cleaned_string = re.sub(r'[-.\s]+', '-', cleaned_string)
+    
+    # Convert to lowercase and truncate to length ti
+    result_string = cleaned_string.lower()[:ti]
+    
+    return result_string
 
 def get_devices(offset):
     try:
@@ -35,13 +52,9 @@ def get_devices(offset):
         r = requests.get(uri_devices, headers=headers, timeout=15, verify=False)
         # r.raise_for_status()
         data = r.json()
-        log_message = f"Syncing the devices from Slurp'it in {plugin_type.capitalize()}."
-        SlurpitLog.info(category=LogCategoryChoices.ONBOARD, message=log_message)
         return data, ""
     except ObjectDoesNotExist:
         setting = None
-        log_message = "Need to set the setting parameter"
-        SlurpitLog.failure(category=LogCategoryChoices.ONBOARD, message=log_message)
         return None, log_message
     except Exception as e:
         log_message = "Please confirm the Slurp'it server is running and reachable."
@@ -53,6 +66,45 @@ def start_device_import():
 
 def format_address(street, number, zipcode, country):
     return f"{street} {number} {zipcode} {country}"
+
+def create_sites(data):
+    for item in data:
+        print(item)
+        # First, format the address
+        address = format_address(item['street'], item['number'], item['zipcode'], item['country'])
+        
+        if item['latitude'] == '':
+            item['latitude'] = None
+        
+        if item['longitude'] == '':
+            item['longitude'] = None
+
+        if item['status'] == '1':
+            status = 'active'
+        else:
+            status = 'retired'
+
+        # Prepare data for the Site instance
+        site_data = {
+            'description': item['description'],
+            'longitude': item['longitude'],
+            'latitude': item['latitude'],
+            'slug': slug_string(item['sitename'], ti),
+            'status': status,
+            'physical_address': address,
+            'shipping_address': address,
+        }
+
+        # Update if exists, create if not
+        site, created = Site.objects.update_or_create(
+            name=item['sitename'],  # Field to match for finding the record
+            defaults=site_data       # Fields to update or set if the object is created
+        )
+
+        if created:
+            print(f"Created new site with name {item['sitename']}")
+        else:
+            print(f"Updated existing site with name {item['sitename']}")
 
 def sync_sites():
     try:
@@ -66,49 +118,16 @@ def sync_sites():
         uri_sites = f"{uri_base}/api/sites"
         r = requests.get(uri_sites, headers=headers, timeout=15, verify=False)
         data = r.json()
-        log_message = f"Syncing the devices from Slurp'it in {plugin_type.capitalize()}."
-        SlurpitLog.info(category=LogCategoryChoices.ONBOARD, message=log_message)
-        
+
         # Import Slurpit Sites to NetBox
-        for item in data:
-            # First, format the address
-            address = format_address(item['street'], item['number'], item['zipcode'], item['country'])
-            
-            if item['latitude'] == '':
-                item['latitude'] = None
-            
-            if item['longitude'] == '':
-                item['longitude'] = None
-
-            # Prepare data for the Site instance
-            site_data = {
-                'description': item['description'],
-                'longitude': item['longitude'],
-                'latitude': item['latitude'],
-                'slug': item['sitename'],
-                'status': 'active',
-                'physical_address': address,
-                'shipping_address': address,
-            }
-
-            # Update if exists, create if not
-            site, created = Site.objects.update_or_create(
-                name=item['sitename'],  # Field to match for finding the record
-                defaults=site_data       # Fields to update or set if the object is created
-            )
-
-            if created:
-                print(f"Created new site with name {item['sitename']}")
-            else:
-                print(f"Updated existing site with name {item['sitename']}")
+        create_sites(data)
 
         return data, ""
     except ObjectDoesNotExist:
         setting = None
-        log_message = "Need to set the setting parameter"
-        SlurpitLog.failure(category=LogCategoryChoices.ONBOARD, message=log_message)
         return None, log_message
     except Exception as e:
+        print(e)
         log_message = "Please confirm the Slurp'it server is running and reachable."
         return None, log_message
 
@@ -118,7 +137,6 @@ def import_devices(devices):
         # if device.get('disabled') == '1':
         #     continue
         if device.get('device_type') is None:
-            SlurpitLog.failure(category=LogCategoryChoices.ONBOARD, message=f"Missing device type, cannot import device {device.get('hostname')}")
             continue
         device['slurpit_id'] = device.pop('id')
         
@@ -126,12 +144,10 @@ def import_devices(devices):
             device['createddate'] = timezone.make_aware(datetime.strptime(device['createddate'], '%Y-%m-%d %H:%M:%S'), timezone.get_current_timezone())
             device['changeddate'] = timezone.make_aware(datetime.strptime(device['changeddate'], '%Y-%m-%d %H:%M:%S'), timezone.get_current_timezone())          
         except ValueError:
-            SlurpitLog.failure(category=LogCategoryChoices.ONBOARD, message=f"Failed to convert to datetime, cannot import {device.get('hostname')}")
             continue
         to_insert.append(SlurpitStagedDevice(**{key: value for key, value in device.items() if key in columns}))
     SlurpitStagedDevice.objects.bulk_create(to_insert)
-    SlurpitLog.info(category=LogCategoryChoices.ONBOARD, message=f"Sync staged {len(to_insert)} devices")
-
+    
 
 def process_import(delete=True):
     if delete:
@@ -139,9 +155,6 @@ def process_import(delete=True):
     handle_changed()
     handle_new_comers()
     
-    SlurpitLog.success(category=LogCategoryChoices.ONBOARD, message="Sync job completed.")
-
-
 def run_import():
     devices = get_devices()
     if devices is not None:
@@ -168,7 +181,6 @@ def handle_parted():
         #     device.mapped_device.status=status_offline()
         #     device.mapped_device.save()
         count += 1
-    SlurpitLog.info(category=LogCategoryChoices.ONBOARD, message=f"Sync parted {count} devices")
     
 
 def handle_new_comers():
@@ -189,8 +201,7 @@ def handle_new_comers():
         SlurpitImportedDevice.objects.bulk_create(to_import, ignore_conflicts=True)
         offset += BATCH_SIZE
 
-    SlurpitLog.info(category=LogCategoryChoices.ONBOARD, message=f"Sync imported {count} devices")
-
+    
 def handle_changed():
     latest_changeddate_subquery = SlurpitImportedDevice.objects.filter(
         slurpit_id=OuterRef('slurpit_id')
@@ -228,13 +239,19 @@ def handle_changed():
                 })   
                 
                 if device.ipv4:
+                    address = f'{device.ipv4}/32'
+                    #### Remove Primary IPv4 on other device
+                    other_device = Device.objects.filter(primary_ip4__address=address).first()
+                    if other_device:
+                        other_device.primary_ip4 = None
+                        other_device.save()
+
                     interface = Interface.objects.filter(device=result.mapped_device)
                     if interface:
                         interface = interface.first()
                     else:
                         interface = Interface.objects.create(name='management1', device=result.mapped_device, type='other')
 
-                    address = f'{device.ipv4}/32'
                     ipaddress = IPAddress.objects.filter(address=address)
                     if ipaddress:
                         ipaddress = ipaddress.first()
@@ -249,8 +266,6 @@ def handle_changed():
 
                 result.mapped_device.save()
         offset += BATCH_SIZE
-
-    SlurpitLog.info(category=LogCategoryChoices.ONBOARD, message=f"Sync updated {count} devices")
 
 def import_from_queryset(qs: QuerySet, **extra):
     count = len(qs)
@@ -323,9 +338,15 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
 
     #Interface for new device.
     if staged.ipv4:
+        address = f'{staged.ipv4}/32'
+        #### Remove Primary IPv4 on other device
+        other_device = Device.objects.filter(primary_ip4__address=address).first()
+        if other_device:
+            other_device.primary_ip4 = None
+            other_device.save()
+            
         interface, _ = Interface.objects.get_or_create(name=interface_name, device=device, defaults={'type':'other'})
         
-        address = f'{staged.ipv4}/32'
         ipaddress = IPAddress.objects.filter(address=address)
         if ipaddress:
             ipaddress = ipaddress.first()
@@ -371,12 +392,10 @@ def get_latest_data_on_planning(hostname, planning_id):
 
         data = r.json()
         log_message = f"Get the latest data from Slurp'it in {plugin_type.capitalize()} on planning ID."
-        SlurpitLog.info(category=LogCategoryChoices.ONBOARD, message=log_message)
         return data
     except ObjectDoesNotExist:
         setting = None
         log_message = "Need to set the setting parameter"
-        SlurpitLog.failure(category=LogCategoryChoices.ONBOARD, message=log_message)
         return None
 
 def import_plannings(plannings, delete=True):
@@ -386,10 +405,8 @@ def import_plannings(plannings, delete=True):
         if delete:
             count = SlurpitPlanning.objects.exclude(planning_id__in=ids.keys()).delete()[0]
             SlurpitSnapshot.objects.filter(planning_id__in=ids.keys()).delete()
-            SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Api parted {count} plannings")
-    
+            
         update_objects = SlurpitPlanning.objects.filter(planning_id__in=ids.keys())
-        SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Api updated {update_objects.count()} plannings")
         for planning in update_objects:
             obj = ids.pop(str(planning.planning_id))
             planning.name = obj['name']
@@ -401,5 +418,3 @@ def import_plannings(plannings, delete=True):
             to_save.append(SlurpitPlanning(name=obj['name'], comments=obj['comment'], planning_id=obj['id']))
         SlurpitPlanning.objects.bulk_create(to_save)
         
-        SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Api imported {len(to_save)} plannings")
-        SlurpitLog.success(category=LogCategoryChoices.PLANNING, message=f"Sync job completed.")

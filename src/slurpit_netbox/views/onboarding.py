@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.contenttypes.fields import GenericRel
 from django.core.exceptions import FieldDoesNotExist, ValidationError, ObjectDoesNotExist
 from django.db import transaction, connection
-from django.db.models import ManyToManyField, ManyToManyRel, F, Q
+from django.db.models import ManyToManyField, ManyToManyRel, F, Q, Func
 from django.db.models.fields.json import KeyTextTransform
 from django.utils.decorators import method_decorator
 from django.http import HttpResponse, JsonResponse
@@ -15,7 +15,7 @@ from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils.text import slugify
 
 from .. import get_config, forms, importer, models, tables
-from ..models import SlurpitImportedDevice, SlurpitLog, SlurpitSetting
+from ..models import SlurpitImportedDevice, SlurpitSetting
 from ..management.choices import *
 from ..importer import get_dcim_device, import_from_queryset, run_import, get_devices, BATCH_SIZE, import_devices, process_import, start_device_import, sync_sites
 from ..decorators import slurpit_plugin_registered
@@ -25,10 +25,25 @@ from ..references.imports import *
 from ..filtersets import SlurpitImportedDeviceFilterSet
 from dcim.models import DeviceType, Interface
 from ipam.models import IPAddress
+from django.db.models.functions import Cast, Substr
+
+class TrimCIDR(Func):
+    function = 'substring'
+    template = "%(function)s(%(expressions)s FROM 1 FOR POSITION('/' IN %(expressions)s) - 1)"
+
 
 @method_decorator(slurpit_plugin_registered, name='dispatch')
 class SlurpitImportedDeviceListView(SlurpitViewMixim, generic.ObjectListView):
-    conflicted_queryset = models.SlurpitImportedDevice.objects.filter(mapped_device_id__isnull=True, hostname__lower__in=Device.objects.values('name__lower'))
+    conflicted_queryset = models.SlurpitImportedDevice.objects.filter(
+        mapped_device_id__isnull=True
+    ).filter(
+        Q(hostname__lower__in=Device.objects.values('name__lower')) |
+        Q(ipv4__in=Device.objects.annotate(
+            primary_ip4_trimmed=TrimCIDR(Cast(F('primary_ip4__address'), output_field=models.CharField()))
+        ).filter(
+           Q(primary_ip4__address__regex=r'/32$')
+        ).values('primary_ip4_trimmed'))
+    )
     to_onboard_queryset = models.SlurpitImportedDevice.objects.filter(mapped_device_id__isnull=True).exclude(pk__in=conflicted_queryset.values('pk'))
     onboarded_queryset = models.SlurpitImportedDevice.objects.filter(mapped_device_id__isnull=False)
     migrate_queryset = models.SlurpitImportedDevice.objects.filter(
@@ -140,7 +155,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
             if len(pk_list) == 0:
                 messages.warning(request, "No {} were selected.".format(model._meta.verbose_name_plural))
                 log_message = "Failed to remove since no devices were selected."
-                SlurpitLog.objects.create(level=LogLevelChoices.LOG_FAILURE, category=LogCategoryChoices.ONBOARD, message=log_message)
+                
             else:
                 if 'onboarded' in request.GET:
                     for onboarded_item in self.queryset:
@@ -218,15 +233,12 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     # Update Site           
                     defaults = get_default_objects()
                     site = defaults['site']
-                    if obj.site is not None and site != "":
+                    if obj.site is not None and obj.site != "":
                         site = Site.objects.get(name=obj.site)
-                    device.site = site
+                        device.site = site
 
                     device.save()
 
-                    log_message = f"Migration of onboarded device - {obj.hostname} successfully updated."
-                    SlurpitLog.success(category=LogCategoryChoices.ONBOARD, message=log_message)
-                
                 msg = f'Migration is done successfully.'
                 messages.success(self.request, msg)
 
@@ -248,9 +260,9 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     # Update Site           
                     defaults = get_default_objects()
                     site = defaults['site']
-                    if obj.site is not None and site != "":
+                    if obj.site is not None and obj.site != "":
                         site = Site.objects.get(name=obj.site)
-                    device.site = site
+                        device.site = site
 
                     device.device_type = get_create_dcim_objects(obj)
                     
@@ -267,13 +279,20 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
 
                     # Interface
                     if obj.ipv4:
+                        address = f'{obj.ipv4}/32'
+                        #### Remove Primary IPv4 on other device
+                        other_device = Device.objects.filter(primary_ip4__address=address).first()
+                        if other_device:
+                            other_device.primary_ip4 = None
+                            other_device.save()
+
                         interface = Interface.objects.filter(device=device)
                         if interface:
                             interface = interface.first()
                         else:
                             interface = Interface.objects.create(name='management1', device=device, type='other')
 
-                        address = f'{obj.ipv4}/32'
+                        
                         ipaddress = IPAddress.objects.filter(address=address)
                         if ipaddress:
                             ipaddress = ipaddress.first()
@@ -285,9 +304,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         device.primary_ip4 = ipaddress
                         device.save()
 
-                    log_message = f"Migration of onboarded device - {obj.hostname} successfully updated."
-                    SlurpitLog.success(category=LogCategoryChoices.ONBOARD, message=log_message)
-                
+                    
                 msg = f'Migration is done successfully.'
                 messages.success(self.request, msg)
 
@@ -297,9 +314,18 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
             conflic = request.GET.get('conflicted')
             if conflic == 'create':
                 Device.objects.filter(name__lower__in=self.queryset.values('hostname__lower')).delete()
+                
+                matching_ipv4s = [f"{ipv4}/32" for ipv4 in self.queryset.values_list('ipv4', flat=True).distinct()]
+                # Delete the matching Device records
+                Device.objects.filter(primary_ip4__address__in=matching_ipv4s).delete()
+
+
             elif conflic == 'update_slurpit':
                 for obj in self.queryset:
                     device = Device.objects.filter(name__iexact=obj.hostname).first()
+                    # Management IP Case
+                    if device is None:
+                        device = Device.objects.filter(primary_ip4__address=f'{obj.ipv4}/32').first()
 
                     set_device_custom_fields(device, {
                         'slurpit_hostname': obj.hostname,
@@ -309,30 +335,43 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         'slurpit_devicetype': obj.device_type,
                         'slurpit_ipv4': obj.ipv4,
                         'slurpit_site': obj.site
-                    })      
+                    })     
+                    other_imported_device = SlurpitImportedDevice.objects.filter(mapped_device=device).first()
+                    if other_imported_device:
+                        other_imported_device.delete()
+
                     obj.mapped_device = device    
                     
                     # Update Site           
                     defaults = get_default_objects()
                     site = defaults['site']
-                    if obj.site is not None and site != "":
+                    if obj.site is not None and obj.site != "":
                         site = Site.objects.get(name=obj.site)
-                    device.site = site
+                        device.site = site
 
                     device.save()
                     obj.save()
 
-                    log_message = f"Conflicted device resolved - {obj.hostname} successfully updated."
-                    SlurpitLog.success(category=LogCategoryChoices.ONBOARD, message=log_message)
-                
+                    
                 msg = f'Conflicts successfully resolved.'
                 messages.success(self.request, msg)
 
                 return redirect(self.get_return_url(request))
             else:
                 for obj in self.queryset:
-                    device = Device.objects.filter(name__iexact=obj.hostname).first()
+                    device = None
+                    if obj.ipv4:
+                        device = Device.objects.filter(primary_ip4__address=f'{obj.ipv4}/32').first()
 
+                    if device is None: # Name Case
+                        device = Device.objects.filter(name__iexact=obj.hostname).first()
+                    else:
+                        if device.name != obj.hostname:
+                            other_device = Device.objects.filter(name__iexact=obj.hostname).first()
+                            if other_device:
+                                other_device.delete()
+                            
+                            device.name = obj.hostname
                     set_device_custom_fields(device, {
                         'slurpit_hostname': obj.hostname,
                         'slurpit_fqdn': obj.fqdn,
@@ -341,7 +380,12 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         'slurpit_devicetype': obj.device_type,
                         'slurpit_ipv4': obj.ipv4,
                         'slurpit_site': obj.site
-                    })      
+                    })    
+                      
+                    other_imported_device = SlurpitImportedDevice.objects.filter(mapped_device=device).first()
+                    if other_imported_device:
+                        other_imported_device.delete()
+
                     obj.mapped_device = device    
 
                     device.device_type = get_create_dcim_objects(obj)
@@ -357,22 +401,28 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     # Update Site           
                     defaults = get_default_objects()
                     site = defaults['site']
-                    if obj.site is not None and site != "":
+                    if obj.site is not None and obj.site != "":
                         site = Site.objects.get(name=obj.site)
-                    device.site = site
+                        device.site = site
 
                     device.save()
                     obj.save()
 
                     # Interface
                     if obj.ipv4:
+                        address = f'{obj.ipv4}/32'
+                        #### Remove Primary IPv4 on other device
+                        other_device = Device.objects.filter(primary_ip4__address=address).first()
+                        if other_device:
+                            other_device.primary_ip4 = None
+                            other_device.save()
+                            
                         interface = Interface.objects.filter(device=device)
                         if interface:
                             interface = interface.first()
                         else:
                             interface = Interface.objects.create(name='management1', device=device, type='other')
 
-                        address = f'{obj.ipv4}/32'
                         ipaddress = IPAddress.objects.filter(address=address)
                         if ipaddress:
                             ipaddress = ipaddress.first()
@@ -384,9 +434,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         device.primary_ip4 = ipaddress
                         device.save()
 
-                    log_message = f"Conflicted device resolved - {obj.hostname} successfully updated."
-                    SlurpitLog.success(category=LogCategoryChoices.ONBOARD, message=log_message)
-                
+                    
                 msg = f'Conflicts successfully resolved.'
                 messages.success(self.request, msg)
 
@@ -418,8 +466,6 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
         table = self.table(self.queryset.filter(mapped_device_id__isnull=True), orderable=False)
         if not table.rows:
             messages.warning(request, "No {} were selected.".format(model._meta.verbose_name_plural))
-            log_message = "Failed to onboard since no devices were selected."
-            SlurpitLog.objects.create(level=LogLevelChoices.LOG_FAILURE, category=LogCategoryChoices.ONBOARD, message=log_message)
             return redirect(self.get_return_url(request))
 
         return render(request, self.template_name, {
@@ -467,9 +513,6 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                 updated_objects.append(obj)
             except Exception as e:
                 return [], "fail", str(e), obj.hostname
-
-            SlurpitLog.success(category=LogCategoryChoices.ONBOARD, message=f"Onboarded device - {obj.hostname} successfully.")
-
             # Take a snapshot of change-logged models
             if hasattr(device, 'snapshot'):
                 device.snapshot()
@@ -508,8 +551,7 @@ class ImportDevices(View):
             return JsonResponse({"action": "process"})
         except requests.exceptions.RequestException as e:
             messages.error(request, "An error occured during querying Slurp'it!")
-            SlurpitLog.failure(category=LogCategoryChoices.ONBOARD, message=f"An error occured during querying Slurp'it! {e}")
-        
+            
         return JsonResponse({"action": "", "error": "ERROR"})
     
 

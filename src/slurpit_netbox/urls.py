@@ -19,9 +19,6 @@ urlpatterns = (
     ## reconcile ##
     path('reconcile/',          views.ReconcileView.as_view(), name='reconcile_list'),
     path('reconcile/<int:pk>/<str:reconcile_type>', views.ReconcileDetailView.as_view(), name='reconcile_detail'),
-    ## logging ##
-    path('slurpitlog/',         views.LoggingListView.as_view(), name='slurpitlog_list'),
-    
 
     path('slurpitinitaddress/', views.SlurpitInitIPAddressListView.as_view(), name='slurpitinitipaddress_list'),
     path('slurpitprefix/', views.SlurpitPrefixListView.as_view(), name='slurpitprefix_list'),

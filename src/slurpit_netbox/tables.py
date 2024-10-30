@@ -9,7 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from netbox.tables import NetBoxTable, ToggleColumn, columns
 from dcim.models import  Device, Interface
 from dcim.tables import BaseInterfaceTable
-from .models import SlurpitImportedDevice, SlurpitLog, SlurpitInitIPAddress, SlurpitInterface, SlurpitPrefix, SlurpitVLAN
+from .models import SlurpitImportedDevice, SlurpitInitIPAddress, SlurpitInterface, SlurpitPrefix, SlurpitVLAN
 from tenancy.tables import TenancyColumnsMixin, TenantColumn
 from ipam.models import IPAddress, Prefix, VLAN
 
@@ -49,28 +49,58 @@ class ConditionalToggle(ToggleColumn):
 class ConditionalLink(Column):
     def render(self, value, bound_column, record):
         if record.mapped_device_id is None:
-            return value
+            
+            original_value = ""
+            original_device = Device.objects.filter(name__iexact=record.hostname).first()
+            if original_device is None and record.ipv4:
+                original_device = Device.objects.filter(primary_ip4__address=f'{record.ipv4}/32').first()
+
+            if original_device:
+                original_value = original_device.name
+
+            if str(original_value) == str(value):
+                return mark_safe(f'<span>{escape(value)}<br/>{escape(original_value)}</span>') #nosec 
+            
+            if original_device:
+                return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_value)}</span>') #nosec 
+            else:
+                return value
+    
+            
         link = LinkTransform(attrs=self.attrs.get("a", {}), accessor=Accessor("mapped_device"))
         return link(value, value=value, record=record, bound_column=bound_column)
 
 class ConflictedColumn(Column):
     def render(self, value, bound_column, record):
         device = Device.objects.filter(name__iexact=record.hostname).first()
+        if device is None:
+            device = Device.objects.filter(primary_ip4__address=f'{record.ipv4}/32').first()
 
         original_value = ""
         column_name = bound_column.verbose_name
 
-        if column_name == "Manufacturer":
-            original_value = device.device_type.manufacturer
-        elif column_name == "Platform":
-            original_value = device.platform
-        else:
-            original_value = device.device_type
+        if device:
+            if column_name == "Manufacturer":
+                original_value = device.device_type.manufacturer
+            elif column_name == "Platform":
+                original_value = device.platform
+            elif column_name == "FQDN":
+                if "slurpit_fqdn" in device.custom_field_data:
+                    original_value = device.custom_field_data['slurpit_fqdn']
+            elif column_name == "IPv4":
+                if device.primary_ip4:
+                    original_value = str(device.primary_ip4.address)
+                    original_value = original_value.split("/")[0]
+            else:
+                original_value = device.device_type
 
-            if record.mapped_devicetype_id is not None:
-                link = LinkTransform(attrs=self.attrs.get("a", {}), accessor=Accessor("mapped_devicetype"))
-                return mark_safe(f'{greenLink(link(escape(value), value=escape(value), record=record, bound_column=bound_column))}<br />{escape(original_value)}') #nosec 
-            
+                if record.mapped_devicetype_id is not None:
+                    link = LinkTransform(attrs=self.attrs.get("a", {}), accessor=Accessor("mapped_devicetype"))
+                    if str(original_value) != str(value):
+                        return mark_safe(f'{greenLink(link(escape(value), value=escape(value), record=record, bound_column=bound_column))}<br />{escape(original_value)}') #nosec 
+        
+        if str(original_value) == str(value):
+            return mark_safe(f'<span>{escape(value)}<br/>{escape(original_value)}</span>') #nosec 
         return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_value)}</span>') #nosec 
 
 
@@ -100,14 +130,18 @@ class SlurpitImportedDeviceTable(NetBoxTable):
         verbose_name = _('IPv4')
     )
 
+    site = tables.Column(
+        verbose_name = _('Site')
+    )
+
     last_updated = tables.Column(
         verbose_name = _('Last seen')
     )
 
     class Meta(NetBoxTable.Meta):
         model = SlurpitImportedDevice
-        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'ipv4', 'device_os', 'device_type', 'last_updated')
-        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'last_updated')
+        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'ipv4', 'device_os', 'site', 'device_type', 'last_updated')
+        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'site', 'last_updated')
 
 class PlatformTypeColumn(Column):
     def render(self, value, bound_column, record):
@@ -138,14 +172,18 @@ class SlurpitOnboardedDeviceTable(NetBoxTable):
         verbose_name = _('IPv4')
     )
 
+    site = tables.Column(
+        verbose_name = _('Site')
+    )
+
     last_updated = tables.Column(
         verbose_name = _('Last seen')
     )
 
     class Meta(NetBoxTable.Meta):
         model = SlurpitImportedDevice
-        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'ipv4', 'device_os', 'device_type', 'last_updated')
-        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'last_updated')
+        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'ipv4', 'device_os', 'device_type', 'site', 'last_updated')
+        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'site','last_updated')
 
 class ConflictDeviceTable(NetBoxTable):
     actions = columns.ActionsColumn(actions=tuple())
@@ -161,14 +199,22 @@ class ConflictDeviceTable(NetBoxTable):
         verbose_name = _('Platform')
     )
 
+    ipv4 = ConflictedColumn(
+        verbose_name = _('IPv4')
+    )
+
+    fqdn = ConflictedColumn(
+        verbose_name = _('FQDN')
+    )
+
     last_updated = tables.Column(
         verbose_name = _('Last seen')
     )
 
     class Meta(NetBoxTable.Meta):
         model = SlurpitImportedDevice
-        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'device_os', 'device_type', 'last_updated')
-        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'last_updated')
+        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'device_os', 'device_type', 'ipv4', 'last_updated')
+        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'last_updated')
 
 
 class MigratedDeviceTable(NetBoxTable):
@@ -185,6 +231,10 @@ class MigratedDeviceTable(NetBoxTable):
         verbose_name = _('Platform')
     )
 
+    site = tables.Column(
+        verbose_name = _('Site')
+    )
+
     last_updated = tables.Column(
         verbose_name = _('Last seen')
     )
@@ -196,38 +246,38 @@ class MigratedDeviceTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = SlurpitImportedDevice
-        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'device_os', 'device_type', 'last_updated')
-        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'last_updated')
+        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'device_os', 'device_type', 'site', 'last_updated')
+        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'site', 'last_updated')
 
     def render_device_os(self, value, record):
-        return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(record.mapped_device.custom_field_data["slurpit_platform"])}</span>') #nosec
+        original_val = record.mapped_device.custom_field_data["slurpit_platform"]
+        if str(value) == str(original_val):
+            return mark_safe(f'<span">{escape(value)}<br/>{escape(original_val)}</span>') #nosec 
+        
+        return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_val)}</span>') #nosec
+    
+    def render_site(self, value, record):
+        original_val = record.mapped_device.custom_field_data["slurpit_site"]
+        if str(value) == str(original_val):
+            return mark_safe(f'<span">{escape(value)}<br/>{escape(original_val)}</span>') #nosec 
+        
+        return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_val)}</span>') #nosec
     
     def render_brand(self, value, record):
-        return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(record.mapped_device.custom_field_data["slurpit_manufacturer"])}</span>') #nosec
+        original_val = record.mapped_device.custom_field_data["slurpit_manufacturer"]
+        if str(value) == str(original_val):
+            return mark_safe(f'<span">{escape(value)}<br/>{escape(original_val)}</span>') #nosec 
+        return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_val)}</span>') #nosec
     
     def render_device_type(self, value, bound_column, record):
         if record.mapped_devicetype_id is None:
             return value
         link = LinkTransform(attrs=self.attrs.get("a", {}), accessor=Accessor("mapped_devicetype"))
-        return mark_safe(f'<span>{greenLink(link(escape(value), value=escape(value), record=record, bound_column=bound_column))}<br/>{escape(record.mapped_device.custom_field_data["slurpit_devicetype"])}</span>') #nosec 
 
-class LoggingTable(NetBoxTable):
-    actions = columns.ActionsColumn(actions=tuple())
-    level = tables.Column()
-    class Meta(NetBoxTable.Meta):
-        model = SlurpitLog
-        fields = ( 'pk', 'id', 'log_time', 'level', 'category', 'message', 'last_updated')
-        default_columns = ('log_time', 'level', 'category', 'message')
-    
-    def render_level(self, value, record):
-        badge_class = {
-            'Info': 'badge text-bg-blue',
-            'Success': 'badge text-bg-green',
-            'Failure': 'badge text-bg-red',
-            # Add more mappings for other levels as needed
-        }.get(escape(value), 'badge bg-secondary')  # Default to secondary if level is not recognized
-        
-        return mark_safe(f'<span class="{badge_class}">{escape(value)}</span>') #nosec 
+        original_val = record.mapped_device.custom_field_data["slurpit_devicetype"]
+        if str(value) == str(original_val):
+            return mark_safe(f'<span">{escape(value)}<br/>{escape(original_val)}</span>') #nosec 
+        return mark_safe(f'<span>{greenLink(link(escape(value), value=escape(value), record=record, bound_column=bound_column))}<br/>{escape(record.mapped_device.custom_field_data["slurpit_devicetype"])}</span>') #nosec 
     
 class SlurpitPlanningTable(tables.Table):
 

@@ -46,11 +46,6 @@ menu = PluginMenu(
                         "slurpit_netbox.view_slurpitvlan"
                     ]
                 ),
-                PluginMenuItem(
-                    link='plugins:slurpit_netbox:slurpitlog_list',
-                    link_text='Logging',
-                    permissions=["slurpit_netbox.view_slurpitlog"]
-                ),
             )
         ),
     ),

@@ -4,13 +4,12 @@ from netbox.api.serializers import NetBoxModelSerializer
 from rest_framework import serializers
 from netbox.api.serializers import WritableNestedSerializer
 
-from slurpit_netbox.models import SlurpitPlanning, SlurpitImportedDevice, SlurpitStagedDevice, SlurpitLog, SlurpitSetting, SlurpitSnapshot, SlurpitMapping, SlurpitInitIPAddress, SlurpitInterface, SlurpitPrefix, SlurpitVLAN
+from slurpit_netbox.models import SlurpitPlanning, SlurpitImportedDevice, SlurpitStagedDevice, SlurpitSetting, SlurpitSnapshot, SlurpitMapping, SlurpitInitIPAddress, SlurpitInterface, SlurpitPrefix, SlurpitVLAN
 
 __all__ = (
     'SlurpitPlanningSerializer',
     'SlurpitStagedDeviceSerializer',
     'SlurpitImportedDeviceSerializer',
-    'SlurpitLogSerializer',
     'SlurpitSettingSerializer',
     'SlurpitSnapshotSerializer',
     'SlurpitInitIPAddressSerializer',
@@ -62,10 +61,6 @@ class SlurpitImportedDeviceSerializer(serializers.ModelSerializer):
         model = SlurpitImportedDevice
         fields = ['id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', 'createddate', 'changeddate']
 
-class SlurpitLogSerializer(NetBoxModelSerializer):
-    class Meta:
-        model = SlurpitLog
-        fields = ['id', 'log_time', 'level', 'category', 'message']
 
 class SlurpitSettingSerializer(WritableNestedSerializer):
     class Meta:

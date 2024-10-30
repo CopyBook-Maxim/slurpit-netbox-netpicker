@@ -33,7 +33,7 @@ from ..validator import (
     prefix_validator,
     vlan_validator
 )
-from ..importer import process_import, import_devices, import_plannings, start_device_import, BATCH_SIZE
+from ..importer import process_import, import_devices, import_plannings, start_device_import, create_sites, sync_sites, BATCH_SIZE
 from ..management.choices import *
 from ..views.datamapping import get_device_dict
 from ..references import base_name 
@@ -43,8 +43,7 @@ from ..models import (
     SlurpitPlanning, 
     SlurpitSnapshot, 
     SlurpitImportedDevice, 
-    SlurpitStagedDevice, 
-    SlurpitLog, 
+    SlurpitStagedDevice,
     SlurpitMapping, 
     SlurpitInitIPAddress, 
     SlurpitInterface, 
@@ -63,6 +62,7 @@ from ipam.forms import (
 )
 from tenancy.models import Tenant
 from django.core.cache import cache
+from dcim.api.serializers_.sites import SiteSerializer
 
 __all__ = (
     'SlurpitPlanningViewSet',
@@ -77,129 +77,6 @@ class SlurpitRootView(APIRootView):
     def get_view_name(self):
         return 'Slurpit'
     
-
-class SlurpitPlanningViewSet(
-        SlurpitViewSet
-    ):
-    queryset = SlurpitPlanning.objects.all()
-    serializer_class = SlurpitPlanningSerializer
-    filterset_class = SlurpitPlanningFilterSet
-
-    @action(detail=False, methods=['delete'], url_path='delete-all')
-    def delete_all(self, request, *args, **kwargs):
-        """
-        A custom action to delete all SlurpitPlanning objects.
-        Be careful with this operation: it cannot be undone!
-        """
-        self.queryset.delete()
-        SlurpitSnapshot.objects.all().delete()
-        SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Api deleted all snapshots and plannings")
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
-    def get_queryset(self):
-        if self.request.method == 'GET':
-            # Customize this queryset to suit your requirements for GET requests
-            return SlurpitPlanning.objects.filter(selected=True)
-        # For other methods, use the default queryset
-        return self.queryset
-    
-    @action(detail=False, methods=['delete'], url_path='delete/(?P<planning_id>[^/.]+)')
-    def delete(self, request, *args, **kwargs):
-        planning_id = kwargs.get('planning_id')
-        planning = SlurpitPlanning.objects.filter(planning_id=planning_id).first()
-        if not planning:
-            return Response(f"Unknown planning id {planning_id}", status=status.HTTP_400_BAD_REQUEST)
-
-        planning.delete()
-        count = SlurpitSnapshot.objects.filter(planning_id=planning_id).delete()[0]
-        SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Api deleted all {count} snapshots and planning {planning.name}")
-        return Response(status=status.HTTP_204_NO_CONTENT)
-        
-    @action(detail=False, methods=['post'],  url_path='sync')
-    def sync(self, request):
-        if not isinstance(request.data, list):
-            return Response("Should be a list", status=status.HTTP_400_BAD_REQUEST)
-        import_plannings(request.data)
-        return JsonResponse({'status': 'success'})
-    
-    def create(self, request):
-        if not isinstance(request.data, list):
-            return Response("Should be a list", status=status.HTTP_400_BAD_REQUEST)
-
-        import_plannings(request.data, False)        
-        return JsonResponse({'status': 'success'})
-
-class SlurpitSnapshotViewSet(
-        SlurpitViewSet,
-        BulkCreateModelMixin,
-        BulkDestroyModelMixin,
-    ):
-    queryset = SlurpitSnapshot.objects.all()
-    serializer_class = SlurpitSnapshotSerializer
-    filterset_class = SlurpitSnapshotFilterSet
-
-    @action(detail=False, methods=['delete'], url_path='delete-all/(?P<hostname>[^/.]+)/(?P<planning_id>[^/.]+)')
-    def delete_all(self, request, *args, **kwargs):
-        planning_id = kwargs.get('planning_id')
-        planning = SlurpitPlanning.objects.filter(planning_id=planning_id).first()
-        if not planning:
-            return Response(f"Unknown planning id {planning_id}", status=status.HTTP_400_BAD_REQUEST)
-            
-        hostname = kwargs.get('hostname')
-        if not hostname:
-            return Response(f"No hostname was given", status=status.HTTP_400_BAD_REQUEST)
-
-        cache_key1 = (
-                f"slurpit_plan_{planning_id}_{hostname}_template"
-            )
-        cache_key2 = (
-                f"slurpit_plan_{planning_id}_{hostname}_planning"
-            )
-        cache.delete(cache_key1)
-        cache.delete(cache_key2)
-        
-        count = SlurpitSnapshot.objects.filter(hostname=hostname, planning_id=planning_id).delete()[0]
-        SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Api deleted all {count} snapshots for planning {planning.name} and hostname {hostname}")
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
-    @action(detail=False, methods=['delete'], url_path='clear/(?P<planning_id>[^/.]+)')
-    def clear(self, request, *args, **kwargs):
-        planning_id = kwargs.get('planning_id')
-        planning = SlurpitPlanning.objects.filter(planning_id=planning_id).first()
-        if not planning:
-            return Response(f"Unknown planning id {planning_id}", status=status.HTTP_400_BAD_REQUEST)
-        count = SlurpitSnapshot.objects.filter(planning_id=planning_id).delete()[0]
-        SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Api deleted all {count} snapshots for planning {planning.name}")
-
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
-    def create(self, request):
-
-        try:
-            items = []
-            for record in request.data:
-                if record['content']['template_result']:
-                    items.append(SlurpitSnapshot(
-                        hostname=record['hostname'], 
-                        planning_id=record['planning_id'],
-                        content=record['content']['template_result'], 
-                        result_type="template_result"))
-                
-                if record['content']['planning_result']:
-                    items.append(SlurpitSnapshot(
-                        hostname=record['hostname'], 
-                        planning_id=record['planning_id'],
-                        content=record['content']['planning_result'], 
-                        result_type="planning_result"))
-            
-            SlurpitSnapshot.objects.bulk_create(items, batch_size=BATCH_SIZE, ignore_conflicts=True)
-            SlurpitLog.info(category=LogCategoryChoices.PLANNING, message=f"Created {len(items)} snapshots for Planning by API")
-
-            
-        except:
-            return JsonResponse({'status': 'error'}, status=500)
-
-        return JsonResponse({'status': 'success'}, status=200)
 
 class DeviceViewSet(
         SlurpitViewSet,
@@ -231,12 +108,13 @@ class DeviceViewSet(
         return Response(status=status.HTTP_204_NO_CONTENT)
     
     def create(self, request):
+        sync_sites()
         errors = device_validator(request.data)
         if errors:
             return JsonResponse({'status': 'error', 'errors': errors}, status=400)
         if len(request.data) != 1:
             return JsonResponse({'status': 'error', 'errors': ['List size should be 1']}, status=400)
-        
+
         start_device_import()
         import_devices(request.data)
         process_import(delete=False)
@@ -248,7 +126,7 @@ class DeviceViewSet(
         errors = device_validator(request.data)
         if errors:
             return JsonResponse({'status': 'error', 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
-
+        
         ids = [obj['id'] for obj in request.data]
         hostnames = [obj['hostname'] for obj in request.data]
         SlurpitStagedDevice.objects.filter(Q(hostname__in=hostnames) | Q(slurpit_id__in=ids)).delete()
@@ -257,6 +135,7 @@ class DeviceViewSet(
 
     @action(detail=False, methods=['post'],  url_path='sync_start')
     def sync_start(self, request):
+        sync_sites()
         threshold = timezone.now() - timedelta(days=1)
         SlurpitStagedDevice.objects.filter(createddate__lt=threshold).delete()
         return JsonResponse({'status': 'success'})
@@ -371,7 +250,14 @@ class SlurpitInterfaceView(SlurpitViewSet):
                     continue
                 record['device'] = device
                 del record['hostname']
-                
+
+                if 'status' in record:
+                    if record['status'] == 'up':
+                        record['enabled'] = True
+                    else:
+                        record['enabled'] = False
+                    del record['status']
+
                 new_data = {**initial_interface_values, **record}
                 total_data.append(new_data)
        
@@ -394,7 +280,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
 
                         # Update
                         allowed_fields_with_none = {}
-                        allowed_fields = {'duplex', 'label', 'description', 'speed', 'type', 'module'}
+                        allowed_fields = {'duplex', 'label', 'description', 'speed', 'type', 'module', 'enabled'}
                         update = False
                         for field, value in item.items():
                             current = getattr(slurpit_interface_item, field, None)
@@ -409,8 +295,8 @@ class SlurpitInterfaceView(SlurpitViewSet):
                             batch_update_qs.append(slurpit_interface_item)
                     else:
                         obj = Interface.objects.filter(name=item['name'], device=item['device'])
-                        fields = {'label', 'device', 'module', 'type', 'duplex', 'speed', 'description'}
-                        not_null_fields = {'label', 'device', 'module', 'type', 'duplex', 'speed', 'description'}
+                        fields = {'label', 'device', 'module', 'type', 'duplex', 'speed', 'description', 'enabled'}
+                        not_null_fields = {'label', 'device', 'module', 'type', 'duplex', 'speed', 'description', 'enabled'}
 
                         new_interface = {}
                         if obj:
@@ -1291,3 +1177,31 @@ class SlurpitVLANView(SlurpitViewSet):
         except Exception as e:
             return JsonResponse({'status': 'errors', 'errors': str(e)}, status=400)
 
+class SlurpitPlanningViewSet(
+        SlurpitViewSet
+    ):
+    queryset = SlurpitPlanning.objects.all()
+    serializer_class = SlurpitPlanningSerializer
+    filterset_class = SlurpitPlanningFilterSet
+    
+    def get_queryset(self):
+        if self.request.method == 'GET':
+            # Customize this queryset to suit your requirements for GET requests
+            return SlurpitPlanning.objects.filter(selected=True)
+        # For other methods, use the default queryset
+        return self.queryset
+    
+class SlurpitSiteView(SlurpitViewSet):
+    queryset = Site.objects.all()
+    
+    def get_serializer_class(self):
+        return SiteSerializer
+    
+    def create(self, request):
+        try:
+            create_sites(request.data[::-1])
+        except Exception as e:
+            return JsonResponse({'status': 'errors', 'errors': str(e)}, status=400)
+
+        return JsonResponse({'status': 'success'})
+        
