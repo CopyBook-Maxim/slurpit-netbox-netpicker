@@ -59,10 +59,10 @@ class ConditionalLink(Column):
                 original_value = original_device.name
 
             if str(original_value) == str(value):
-                return mark_safe(f'<span>{escape(value)}<br/>{escape(original_value)}</span>')
+                return mark_safe(f'<span>{escape(value)}<br/>{escape(original_value)}</span>') #nosec 
             
             if original_device:
-                return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_value)}</span>')
+                return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_value)}</span>') #nosec 
             else:
                 return value
     
@@ -100,7 +100,7 @@ class ConflictedColumn(Column):
                         return mark_safe(f'{greenLink(link(escape(value), value=escape(value), record=record, bound_column=bound_column))}<br />{escape(original_value)}') #nosec 
         
         if str(original_value) == str(value):
-            return mark_safe(f'<span>{escape(value)}<br/>{escape(original_value)}</span>')
+            return mark_safe(f'<span>{escape(value)}<br/>{escape(original_value)}</span>') #nosec 
         return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_value)}</span>') #nosec 
 
 
@@ -252,21 +252,21 @@ class MigratedDeviceTable(NetBoxTable):
     def render_device_os(self, value, record):
         original_val = record.mapped_device.custom_field_data["slurpit_platform"]
         if str(value) == str(original_val):
-            return mark_safe(f'<span">{escape(value)}<br/>{escape(original_val)}</span>')
+            return mark_safe(f'<span">{escape(value)}<br/>{escape(original_val)}</span>') #nosec 
         
         return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_val)}</span>') #nosec
     
     def render_site(self, value, record):
         original_val = record.mapped_device.custom_field_data["slurpit_site"]
         if str(value) == str(original_val):
-            return mark_safe(f'<span">{escape(value)}<br/>{escape(original_val)}</span>')
+            return mark_safe(f'<span">{escape(value)}<br/>{escape(original_val)}</span>') #nosec 
         
         return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_val)}</span>') #nosec
     
     def render_brand(self, value, record):
         original_val = record.mapped_device.custom_field_data["slurpit_manufacturer"]
         if str(value) == str(original_val):
-            return mark_safe(f'<span">{escape(value)}<br/>{escape(original_val)}</span>')
+            return mark_safe(f'<span">{escape(value)}<br/>{escape(original_val)}</span>') #nosec 
         return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_val)}</span>') #nosec
     
     def render_device_type(self, value, bound_column, record):
@@ -276,7 +276,7 @@ class MigratedDeviceTable(NetBoxTable):
 
         original_val = record.mapped_device.custom_field_data["slurpit_devicetype"]
         if str(value) == str(original_val):
-            return mark_safe(f'<span">{escape(value)}<br/>{escape(original_val)}</span>')
+            return mark_safe(f'<span">{escape(value)}<br/>{escape(original_val)}</span>') #nosec 
         return mark_safe(f'<span>{greenLink(link(escape(value), value=escape(value), record=record, bound_column=bound_column))}<br/>{escape(record.mapped_device.custom_field_data["slurpit_devicetype"])}</span>') #nosec 
     
 class SlurpitPlanningTable(tables.Table):
