@@ -359,7 +359,9 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                 return redirect(self.get_return_url(request))
             else:
                 for obj in self.queryset:
-                    device = Device.objects.filter(primary_ip4__address=f'{obj.ipv4}/32').first()
+                    device = None
+                    if obj.ipv4:
+                        device = Device.objects.filter(primary_ip4__address=f'{obj.ipv4}/32').first()
 
                     if device is None: # Name Case
                         device = Device.objects.filter(name__iexact=obj.hostname).first()
