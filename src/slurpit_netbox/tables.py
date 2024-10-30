@@ -130,14 +130,18 @@ class SlurpitImportedDeviceTable(NetBoxTable):
         verbose_name = _('IPv4')
     )
 
+    site = tables.Column(
+        verbose_name = _('Site')
+    )
+
     last_updated = tables.Column(
         verbose_name = _('Last seen')
     )
 
     class Meta(NetBoxTable.Meta):
         model = SlurpitImportedDevice
-        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'ipv4', 'device_os', 'device_type', 'last_updated')
-        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'last_updated')
+        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'ipv4', 'device_os', 'site', 'device_type', 'last_updated')
+        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'site', 'last_updated')
 
 class PlatformTypeColumn(Column):
     def render(self, value, bound_column, record):
