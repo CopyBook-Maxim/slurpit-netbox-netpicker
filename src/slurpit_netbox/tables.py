@@ -49,6 +49,19 @@ class ConditionalToggle(ToggleColumn):
 class ConditionalLink(Column):
     def render(self, value, bound_column, record):
         if record.mapped_device_id is None:
+            
+            original_value = ""
+            original_device = Device.objects.filter(name__iexact=record.hostname).first()
+            if original_device is None:
+                original_device = Device.objects.filter(primary_ip4__address=f'{record.ipv4}/32').first()
+
+            if original_device:
+                original_value = original_device.name
+
+            if str(original_value) == str(value):
+                return mark_safe(f'<span>{escape(value)}<br/>{escape(original_value)}</span>')
+            return mark_safe(f'<span">{greenText(escape(value))}<br/>{escape(original_value)}</span>')
+    
             return value
         link = LinkTransform(attrs=self.attrs.get("a", {}), accessor=Accessor("mapped_device"))
         return link(value, value=value, record=record, bound_column=bound_column)
@@ -67,6 +80,9 @@ class ConflictedColumn(Column):
                 original_value = device.device_type.manufacturer
             elif column_name == "Platform":
                 original_value = device.platform
+            elif column_name == "FQDN":
+                if "slurpit_fqdn" in device.custom_field_data:
+                    original_value = device.custom_field_data['slurpit_fqdn']
             elif column_name == "IPv4":
                 if device.primary_ip4:
                     original_value = str(device.primary_ip4.address)
@@ -173,6 +189,10 @@ class ConflictDeviceTable(NetBoxTable):
 
     ipv4 = ConflictedColumn(
         verbose_name = _('IPv4')
+    )
+
+    fqdn = ConflictedColumn(
+        verbose_name = _('FQDN')
     )
 
     last_updated = tables.Column(
