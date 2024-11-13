@@ -69,6 +69,8 @@ def format_address(street, number, zipcode, country):
 
 def create_sites(data):
     for item in data:
+        if 'sitename' not in item or item['sitename'] == "":
+            continue
         print(item)
         # First, format the address
         address = format_address(item['street'], item['number'], item['zipcode'], item['country'])
