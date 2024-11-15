@@ -20,7 +20,7 @@ from ..management.choices import *
 from ..importer import get_dcim_device, import_from_queryset, run_import, get_devices, BATCH_SIZE, import_devices, process_import, start_device_import, sync_sites
 from ..decorators import slurpit_plugin_registered
 from ..references import base_name, custom_field_data_name
-from ..references.generic import create_form, get_form_device_data, SlurpitViewMixim, get_default_objects, set_device_custom_fields, status_inventory, get_create_dcim_objects
+from ..references.generic import create_form, get_form_device_data, SlurpitViewMixim, get_default_objects, set_device_custom_fields, status_inventory, get_create_dcim_objects, status_active
 from ..references.imports import * 
 from ..filtersets import SlurpitImportedDeviceFilterSet
 from dcim.models import DeviceType, Interface
@@ -443,7 +443,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
         initial_data = {'pk': pk_list, 'device_types': device_types, 'sites': sites}
         for k, v in get_default_objects().items():
             initial_data.setdefault(k, str(v.id))
-        initial_data.setdefault('status', status_inventory())
+        initial_data.setdefault('status', status_active())
 
         if request.POST.get('_all'):
             initial_data['_all'] = 'on'

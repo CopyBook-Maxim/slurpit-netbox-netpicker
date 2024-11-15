@@ -13,7 +13,7 @@ from . import get_config
 from .models import SlurpitImportedDevice, SlurpitStagedDevice, ensure_slurpit_tags, SlurpitSetting, SlurpitPlanning, SlurpitSnapshot
 from .management.choices import *
 from .references import base_name, plugin_type, custom_field_data_name
-from .references.generic import get_default_objects, status_inventory, status_offline, get_create_dcim_objects, set_device_custom_fields
+from .references.generic import get_default_objects, status_inventory, status_offline, get_create_dcim_objects, set_device_custom_fields, status_active
 from .references.imports import *
 from dcim.models import Interface, Site
 from ipam.models import IPAddress
@@ -71,7 +71,7 @@ def create_sites(data):
     for item in data:
         if 'sitename' not in item or item['sitename'] == "":
             continue
-        print(item)
+
         # First, format the address
         address = format_address(item['street'], item['number'], item['zipcode'], item['country'])
         
@@ -228,7 +228,7 @@ def handle_changed():
             if result.mapped_device:
                 if device.disabled == False:
                     if result.mapped_device.status==status_offline():
-                        result.mapped_device.status=status_inventory()
+                        result.mapped_device.status=status_active()
                 else:
                     if result.mapped_device.status != status_offline():
                         result.mapped_device.status=status_offline()
@@ -325,7 +325,7 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
         kw['device_type'] = staged.mapped_devicetype
         
     if staged.disabled == False:
-        kw.setdefault('status', status_inventory())
+        kw.setdefault('status', status_active())
     else:
         kw.setdefault('status', status_offline())
     

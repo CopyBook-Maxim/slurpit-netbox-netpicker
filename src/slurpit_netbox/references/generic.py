@@ -45,6 +45,9 @@ def get_default_objects():
 def status_inventory():
     return DeviceStatusChoices.STATUS_INVENTORY
 
+def status_active():
+    return DeviceStatusChoices.STATUS_ACTIVE
+
 def status_offline():
     return DeviceStatusChoices.STATUS_OFFLINE
 
