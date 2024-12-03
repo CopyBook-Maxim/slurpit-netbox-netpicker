@@ -226,12 +226,12 @@ def handle_changed():
             result.save()
             get_create_dcim_objects(device)
             if result.mapped_device:
-                if device.disabled == False:
-                    if result.mapped_device.status==status_offline():
-                        result.mapped_device.status=status_active()
-                else:
+                if device.disabled == True:
                     if result.mapped_device.status != status_offline():
                         result.mapped_device.status=status_offline()
+                # else:
+                #     if result.mapped_device.status==status_offline():
+                #         result.mapped_device.status=status_active()
 
                     
                 set_device_custom_fields(result.mapped_device, {
@@ -324,10 +324,10 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
     if 'device_type' not in extra and staged.mapped_devicetype is not None:
         kw['device_type'] = staged.mapped_devicetype
         
-    if staged.disabled == False:
-        kw.setdefault('status', status_active())
-    else:
+    if staged.disabled == True:
         kw.setdefault('status', status_offline())
+    # else:
+    #     kw.setdefault('status', status_active())
     
     device = Device.objects.filter(name=staged.hostname)
 
