@@ -259,7 +259,7 @@ class ReconcileView(generic.ObjectListView):
                 diff_removed = None
                 action = 'Updated'
                 
-                interface_fields = ['name', 'label','description', 'device', 'module', 'type', 'duplex', 'speed']
+                interface_fields = ['name', 'label','description', 'device', 'module', 'type', 'duplex', 'speed', 'enabled']
                 
                 initial_obj = SlurpitInterface.objects.filter(name='').values(
                     'ignore_module', 'ignore_type', 'ignore_speed', 'ignore_duplex'
@@ -273,7 +273,7 @@ class ReconcileView(generic.ObjectListView):
                         if initial_interface_values[key]:
                             interface_update_ignore_values.append(key)
 
-                updated_fields = ['label', 'speed', 'description', 'type', 'duplex', 'module']
+                updated_fields = ['label', 'speed', 'description', 'type', 'duplex', 'module', 'enabled']
                 fields_to_remove = []
                 
                 for field in updated_fields:
@@ -533,7 +533,7 @@ class ReconcileView(generic.ObjectListView):
                             if initial_interface_values[key]:
                                 interface_update_ignore_values.append(key)
 
-                    updated_fields = ['label', 'speed', 'description', 'type', 'duplex', 'module']
+                    updated_fields = ['label', 'speed', 'description', 'type', 'duplex', 'module', 'enabled']
                     fields_to_remove = []
                     
                     for field in updated_fields:
@@ -843,7 +843,6 @@ class ReconcileDetailView(generic.ObjectView):
             incomming_obj['device'] = device
 
             incomming_change = {**incomming_obj}
-
             current_queryset = Interface.objects.filter(name=name, device=device)
 
             if current_queryset:
