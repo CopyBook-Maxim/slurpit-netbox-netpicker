@@ -25,11 +25,11 @@ def ensure_slurpit_tags(*items):
         tag, _ = Tag.objects.get_or_create(name=name, defaults={'slug':name, 'description':'Slurp\'it onboarded', 'color': 'F09640'})
 
         dcim_applicable_to = 'device', 'devicerole', 'devicetype', 'manufacturer', 'site'
-        ipam_applicable = 'iprange'
+        ipam_applicable_to = 'iprange', 'prefix'
         slurpit_netbox_applicable_to = 'slurpitinitipaddress', 'slurpitinterface', 'slurpitprefix'
 
         dcim_Q = Q(app_label='dcim', model__in=dcim_applicable_to)
-        ipam_Q = Q(app_label='ipam', model=ipam_applicable)
+        ipam_Q = Q(app_label='ipam', model__in=ipam_applicable_to)
         slurpit_Q = Q(app_label='slurpit_netbox', model__in=slurpit_netbox_applicable_to)
 
         tagged_types = ObjectType.objects.filter(ipam_Q | dcim_Q | slurpit_Q)
