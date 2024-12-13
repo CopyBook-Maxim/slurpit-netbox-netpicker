@@ -549,15 +549,19 @@ class ReconcileView(generic.ObjectListView):
                         if netbox_interface:
                             netbox_interface = netbox_interface.first()
 
-                            
+                            if netbox_interface.pk and hasattr(netbox_interface, 'snapshot'):
+                                netbox_interface.snapshot()
+
                             for field in item._meta.fields:
                                 field_name = field.name
                                 field_value = getattr(item, field_name)
                                 if field_name in updated_fields and field_value is not None and field_value != "":
                                     setattr(netbox_interface, field_name, field_value)
 
-                            batch_update_qs.append(netbox_interface)
-                            batch_update_ids.append(item.pk)
+                            netbox_interface.save()
+                            SlurpitInterface.objects.filter(pk=item.pk).delete()
+                            # batch_update_qs.append(netbox_interface)
+                            # batch_update_ids.append(item.pk)
                         else:
                             batch_insert_qs.append(
                                 Interface(
@@ -587,21 +591,21 @@ class ReconcileView(generic.ObjectListView):
                             SlurpitInterface.objects.filter(pk__in=batch_ids).delete()
                         offset += BATCH_SIZE
 
-                    count = len(batch_update_qs)
-                    offset = 0
-                    while offset < count:
-                        batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                        batch_ids = batch_update_ids[offset:offset + BATCH_SIZE]
-                        to_import = []        
-                        for interface_item in batch_qs:
-                            to_import.append(interface_item)
+                    # count = len(batch_update_qs)
+                    # offset = 0
+                    # while offset < count:
+                    #     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
+                    #     batch_ids = batch_update_ids[offset:offset + BATCH_SIZE]
+                    #     to_import = []        
+                    #     for interface_item in batch_qs:
+                    #         to_import.append(interface_item)
 
-                        with transaction.atomic():
-                            Interface.objects.bulk_update(to_import, fields=updated_fields)
+                    #     with transaction.atomic():
+                    #         Interface.objects.bulk_update(to_import, fields=updated_fields)
                         
-                            SlurpitInterface.objects.filter(pk__in=batch_ids).delete()
+                    #         SlurpitInterface.objects.filter(pk__in=batch_ids).delete()
 
-                        offset += BATCH_SIZE
+                    #     offset += BATCH_SIZE
                 elif tab == 'prefix':
                     if _all:
                         reconcile_items =SlurpitPrefix.objects.exclude(prefix=None)
@@ -636,7 +640,10 @@ class ReconcileView(generic.ObjectListView):
                         # If the prefix is existed in netbox
                         if netbox_prefix:
                             netbox_prefix = netbox_prefix.first()
-                            
+
+                            if netbox_prefix.pk and hasattr(netbox_prefix, 'snapshot'):
+                                netbox_prefix.snapshot()
+
                             for field in item._meta.fields:
                                 field_name = field.name
                                 field_value = getattr(item, field_name)
@@ -646,8 +653,11 @@ class ReconcileView(generic.ObjectListView):
                             if item.description is None:
                                 netbox_prefix.description = ""
                             
-                            batch_update_qs.append(netbox_prefix)
-                            batch_update_ids.append(item.pk)
+                            netbox_prefix.save()
+                            SlurpitPrefix.objects.filter(pk=item.pk).delete()
+
+                            # batch_update_qs.append(netbox_prefix)
+                            # batch_update_ids.append(item.pk)
                         else:
                             batch_insert_qs.append(
                                 Prefix(
@@ -676,21 +686,22 @@ class ReconcileView(generic.ObjectListView):
                             SlurpitPrefix.objects.filter(pk__in=batch_ids).delete()
                         offset += BATCH_SIZE
 
-                    count = len(batch_update_qs)
-                    offset = 0
-                    while offset < count:
-                        batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                        batch_ids = batch_update_ids[offset:offset + BATCH_SIZE]
-                        to_import = []        
-                        for prefix_item in batch_qs:
-                            to_import.append(prefix_item)
-
-                        with transaction.atomic():
-                            Prefix.objects.bulk_update(to_import, fields=updated_fields)
+                    # count = len(batch_update_qs)
+                    # offset = 0
+                    # while offset < count:
+                    #     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
+                    #     batch_ids = batch_update_ids[offset:offset + BATCH_SIZE]
+                    #     to_import = []        
+                    #     for prefix_item in batch_qs:
+                    #         to_import.append(prefix_item)
                         
-                            SlurpitPrefix.objects.filter(pk__in=batch_ids).delete()
+                    #     with transaction.atomic():
+                    #         Prefix.objects.bulk_update(to_import, fields=updated_fields)
+                        
+                    #         SlurpitPrefix.objects.filter(pk__in=batch_ids).delete()
 
-                        offset += BATCH_SIZE
+                        
+                    #     offset += BATCH_SIZE
                 else:
                     if _all:
                         reconcile_items =SlurpitInitIPAddress.objects.exclude(address=None)
@@ -727,6 +738,9 @@ class ReconcileView(generic.ObjectListView):
                         if netbox_ipaddress:
                             netbox_ipaddress = netbox_ipaddress.first()
 
+                            if netbox_ipaddress.pk and hasattr(netbox_ipaddress, 'snapshot'):
+                                netbox_ipaddress.snapshot()
+
                             for field in item._meta.fields:
                                 field_name = field.name
                                 field_value = getattr(item, field_name)
@@ -740,8 +754,11 @@ class ReconcileView(generic.ObjectListView):
                             if item.description is None:
                                 netbox_ipaddress.description = ""
 
-                            batch_update_qs.append(netbox_ipaddress)
-                            batch_update_ids.append(item.pk)
+                            netbox_ipaddress.save()
+                            SlurpitInitIPAddress.objects.filter(pk=item.pk).delete()
+
+                            # batch_update_qs.append(netbox_ipaddress)
+                            # batch_update_ids.append(item.pk)
                         else:
                             batch_insert_qs.append(
                                 IPAddress(
@@ -770,21 +787,21 @@ class ReconcileView(generic.ObjectListView):
                             SlurpitInitIPAddress.objects.filter(pk__in=batch_ids).delete()
                         offset += BATCH_SIZE
 
-                    count = len(batch_update_qs)
-                    offset = 0
-                    while offset < count:
-                        batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                        batch_ids = batch_update_ids[offset:offset + BATCH_SIZE]
-                        to_import = []        
-                        for ipaddress_item in batch_qs:
-                            to_import.append(ipaddress_item)
+                    # count = len(batch_update_qs)
+                    # offset = 0
+                    # while offset < count:
+                    #     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
+                    #     batch_ids = batch_update_ids[offset:offset + BATCH_SIZE]
+                    #     to_import = []        
+                    #     for ipaddress_item in batch_qs:
+                    #         to_import.append(ipaddress_item)
 
-                        with transaction.atomic():
-                            IPAddress.objects.bulk_update(to_import, fields=updated_fields)
+                    #     with transaction.atomic():
+                    #         IPAddress.objects.bulk_update(to_import, fields=updated_fields)
                         
-                            SlurpitInitIPAddress.objects.filter(pk__in=batch_ids).delete()
+                    #         SlurpitInitIPAddress.objects.filter(pk__in=batch_ids).delete()
 
-                        offset += BATCH_SIZE
+                    #     offset += BATCH_SIZE
         else:
             messages.warning(request, "No Reconcile Items were selected.")
 
