@@ -913,8 +913,11 @@ class SlurpitPrefixView(SlurpitViewSet):
     def all(self, request, *args, **kwargs):
         prefixes = Prefix.objects.filter(tags__name="slurpit")
         serializer = PrefixSerializer(prefixes, many=True, context={'request': request})
-
-        return JsonResponse({'prefixes': serializer.data})
+        
+        prefixes = []
+        for prefix in serializer.data:
+            prefixes.append(f'{prefix["prefix"]}')
+        return JsonResponse(prefixes, safe=False)
 
 class SlurpitVLANView(SlurpitViewSet):
     queryset = SlurpitVLAN.objects.all()
