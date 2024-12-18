@@ -55,6 +55,7 @@ from ..views.setting import sync_snapshot
 from ipam.models import (
     FHRPGroup, VRF, IPAddress, VLAN, Role, Prefix, VLANGroup
 )
+from ipam.api.serializers import PrefixSerializer
 from dcim.models import Interface, Site
 from dcim.forms import InterfaceForm
 from ipam.forms import (
@@ -258,6 +259,9 @@ class SlurpitInterfaceView(SlurpitViewSet):
                         record['enabled'] = False
                     del record['status']
 
+                if 'description' in record:
+                    record['description'] = str(record['description'])
+                    
                 new_data = {**initial_interface_values, **record}
                 total_data.append(new_data)
        
@@ -908,6 +912,15 @@ class SlurpitPrefixView(SlurpitViewSet):
         except Exception as e:
             return JsonResponse({'status': 'errors', 'errors': str(e)}, status=400)
 
+    @action(detail=False, methods=['get'], url_path='all')
+    def all(self, request, *args, **kwargs):
+        prefixes = Prefix.objects.filter(tags__name="slurpit")
+        serializer = PrefixSerializer(prefixes, many=True, context={'request': request})
+        
+        prefixes = []
+        for prefix in serializer.data:
+            prefixes.append(f'{prefix["prefix"]}')
+        return JsonResponse(prefixes, safe=False)
 
 class SlurpitVLANView(SlurpitViewSet):
     queryset = SlurpitVLAN.objects.all()

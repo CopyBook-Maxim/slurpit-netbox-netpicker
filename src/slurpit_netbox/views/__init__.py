@@ -7,13 +7,10 @@ from .reconcile import (
     SlurpitInitIPAddressListView, 
     SlurpitPrefixListView, 
     SlurpitInterfaceListView, 
-    SlurpitVlanListView,
     SlurpitPrefixEditView, 
     SlurpitInterfaceEditView, 
     SlurpitIPAddressEditView, 
     SlurpitInterfaceBulkEditView, 
     SlurpitPrefixBulkEditView, 
     SlurpitIPAddressBulkEditView,
-    SlurpitVLANEditView,
-    SlurpitVLANBulkEditView
 )

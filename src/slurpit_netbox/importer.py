@@ -13,7 +13,7 @@ from . import get_config
 from .models import SlurpitImportedDevice, SlurpitStagedDevice, ensure_slurpit_tags, SlurpitSetting, SlurpitPlanning, SlurpitSnapshot
 from .management.choices import *
 from .references import base_name, plugin_type, custom_field_data_name
-from .references.generic import get_default_objects, status_inventory, status_offline, get_create_dcim_objects, set_device_custom_fields
+from .references.generic import get_default_objects, status_inventory, status_offline, get_create_dcim_objects, set_device_custom_fields, status_active
 from .references.imports import *
 from dcim.models import Interface, Site
 from ipam.models import IPAddress
@@ -69,7 +69,9 @@ def format_address(street, number, zipcode, country):
 
 def create_sites(data):
     for item in data:
-        print(item)
+        if 'sitename' not in item or item['sitename'] == "":
+            continue
+
         # First, format the address
         address = format_address(item['street'], item['number'], item['zipcode'], item['country'])
         
@@ -224,12 +226,12 @@ def handle_changed():
             result.save()
             get_create_dcim_objects(device)
             if result.mapped_device:
-                if device.disabled == False:
-                    if result.mapped_device.status==status_offline():
-                        result.mapped_device.status=status_inventory()
-                else:
+                if device.disabled == True:
                     if result.mapped_device.status != status_offline():
                         result.mapped_device.status=status_offline()
+                # else:
+                #     if result.mapped_device.status==status_offline():
+                #         result.mapped_device.status=status_active()
 
                     
                 set_device_custom_fields(result.mapped_device, {
@@ -322,10 +324,10 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
     if 'device_type' not in extra and staged.mapped_devicetype is not None:
         kw['device_type'] = staged.mapped_devicetype
         
-    if staged.disabled == False:
-        kw.setdefault('status', status_inventory())
-    else:
+    if staged.disabled == True:
         kw.setdefault('status', status_offline())
+    # else:
+    #     kw.setdefault('status', status_active())
     
     device = Device.objects.filter(name=staged.hostname)
 

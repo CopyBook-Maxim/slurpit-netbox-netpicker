@@ -58,7 +58,11 @@ class OnboardingForm(NetBoxModelBulkEditForm):
         max_length=200,
         required=True
     )
-    
+    status = forms.ChoiceField(
+        label=_('Status'),
+        choices=add_blank_choice(DeviceStatusChoices),
+        required=False
+    )
     device_type = forms.ChoiceField(
         choices=[],
         label=_('Device type'),
@@ -153,11 +157,7 @@ class OnboardingForm(NetBoxModelBulkEditForm):
         choices=add_blank_choice(DeviceAirflowChoices),
         required=False
     )
-    status = ChoiceField(
-        label=_('Status'),
-        choices=add_blank_choice(DeviceStatusChoices),
-        required=False
-    )
+    
     def __init__(self, *args, **kwargs):
         device_types = kwargs['initial'].pop('device_types', None)
         sites = kwargs['initial'].pop('sites', None)

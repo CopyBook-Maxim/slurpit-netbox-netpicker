@@ -1,3 +1,7 @@
+# Support & Community
+If you need help, Join our Discord server: https://slurpit.io/discord
+or e-mail us on: support@slurpit.io
+
 # NetBox Discovery Plugin
 [Netbox](https://github.com/netbox-community/netbox) plugin to automatically discover your network with [Slurp'it](https://slurpit.io).
 

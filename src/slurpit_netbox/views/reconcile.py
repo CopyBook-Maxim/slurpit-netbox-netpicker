@@ -1,12 +1,12 @@
 from netbox.views import generic
 from django.http import JsonResponse
 
-from ..models import SlurpitInitIPAddress, SlurpitInterface, SlurpitPrefix, SlurpitVLAN
+from ..models import SlurpitInitIPAddress, SlurpitInterface, SlurpitPrefix
 from .. import forms, importer, models, tables
 from ..decorators import slurpit_plugin_registered
 from django.utils.decorators import method_decorator
 from django.shortcuts import render
-from ipam.models import FHRPGroup, VRF, IPAddress, Prefix, VLAN, VLANGroup
+from ipam.models import FHRPGroup, VRF, IPAddress, Prefix
 from utilities.data import shallow_compare_dict
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -16,7 +16,7 @@ from ..importer import BATCH_SIZE
 from django.db import transaction
 from dcim.models import Interface
 from urllib.parse import urlencode
-from ..filtersets import SlurpitIPAddressFilterSet, SlurpitInterfaceFilterSet, SlurpitPrefixFilterSet, SlurpitVLANFilterSet
+from ..filtersets import SlurpitIPAddressFilterSet, SlurpitInterfaceFilterSet, SlurpitPrefixFilterSet
 from utilities.views import register_model_view
 from ..forms import SlurpitPrefixForm, SlurpitDeviceInterfaceForm, SlurpitInitIPAMForm
 
@@ -32,10 +32,7 @@ class SlurpitInterfaceListView(generic.ObjectListView):
     queryset = SlurpitInterface.objects.all()
     table = tables.SlurpitInterfaceTable
 
-class SlurpitVlanListView(generic.ObjectListView):
-    queryset = SlurpitVLAN.objects.all()
-    table = tables.SlurpitVLANTable
-    
+
 @method_decorator(slurpit_plugin_registered, name='dispatch')
 class ReconcileView(generic.ObjectListView):
     queryset = models.SlurpitInitIPAddress.objects.exclude(address = None)
@@ -53,10 +50,6 @@ class ReconcileView(generic.ObjectListView):
             self.queryset = models.SlurpitPrefix.objects.exclude(prefix = None)
             self.table = tables.SlurpitPrefixTable
             self.filterset = SlurpitPrefixFilterSet
-        elif tab == 'vlan':
-            self.queryset = models.SlurpitVLAN.objects.exclude(name = '')
-            self.table = tables.SlurpitVLANTable
-            self.filterset = SlurpitVLANFilterSet
         else:
             self.queryset = models.SlurpitInterface.objects.exclude(name = '')
             self.table = tables.SlurpitInterfaceTable
@@ -238,8 +231,6 @@ class ReconcileView(generic.ObjectListView):
             edit_bulk_url = reverse("plugins:slurpit_netbox:slurpitinterface_bulk_edit")
         elif reconcile_type == 'prefix':
             edit_bulk_url = reverse("plugins:slurpit_netbox:slurpitprefix_bulk_edit")
-        elif reconcile_type == 'vlan':
-            edit_bulk_url = reverse("plugins:slurpit_netbox:slurpitvlan_bulk_edit")
         else:
             edit_bulk_url = reverse("plugins:slurpit_netbox:slurpitipaddress_bulk_edit")
         return_values = {
@@ -247,7 +238,6 @@ class ReconcileView(generic.ObjectListView):
             'ipam_count': models.SlurpitInitIPAddress.objects.exclude(address = None).count(),
             'interface_count': models.SlurpitInterface.objects.exclude(name = '').count(),
             'prefix_count': models.SlurpitPrefix.objects.exclude(prefix = None).count(),
-            'vlan_count': models.SlurpitVLAN.objects.exclude(name = '').count(),
             'edit_bulk_url': edit_bulk_url
         }
 
@@ -269,7 +259,7 @@ class ReconcileView(generic.ObjectListView):
                 diff_removed = None
                 action = 'Updated'
                 
-                interface_fields = ['name', 'label','description', 'device', 'module', 'type', 'duplex', 'speed']
+                interface_fields = ['name', 'label','description', 'device', 'module', 'type', 'duplex', 'speed', 'enabled']
                 
                 initial_obj = SlurpitInterface.objects.filter(name='').values(
                     'ignore_module', 'ignore_type', 'ignore_speed', 'ignore_duplex'
@@ -283,7 +273,7 @@ class ReconcileView(generic.ObjectListView):
                         if initial_interface_values[key]:
                             interface_update_ignore_values.append(key)
 
-                updated_fields = ['label', 'speed', 'description', 'type', 'duplex', 'module']
+                updated_fields = ['label', 'speed', 'description', 'type', 'duplex', 'module', 'enabled']
                 fields_to_remove = []
                 
                 for field in updated_fields:
@@ -404,73 +394,6 @@ class ReconcileView(generic.ObjectListView):
 
                 object_type = f'{Prefix._meta.app_label} | {Prefix._meta.verbose_name}'
 
-            elif tab == 'vlan':
-                self.queryset = models.SlurpitVLAN.objects.all()
-
-                diff_added = None
-                diff_removed = None
-                action = 'Updated'
-                
-
-                vlan_fields = ['name', 'group', 'vid', 'status', 'role', 'tenant', 'description']
-
-                initial_obj = SlurpitVLAN.objects.filter(name='').values(
-                    'ignore_status', 'ignore_role', 'ignore_tenant', 'ignore_description'
-                ).first()
-                vlan_update_ignore_values = []
-
-                if initial_obj:
-                    initial_vlan_values = {**initial_obj}
-
-                    for key in initial_vlan_values.keys():
-                        if initial_vlan_values[key]:
-                            vlan_update_ignore_values.append(key)
-
-                updated_fields = ['status', 'role', 'tenant', 'description', 'name']
-                fields_to_remove = []
-                
-                for field in updated_fields:
-                    ignore_field = f'ignore_{field}'
-                    if ignore_field in vlan_update_ignore_values:
-                        fields_to_remove.append(field)
-
-                vlan_fields = list(set(vlan_fields) - set(fields_to_remove))
-
-                incomming_queryset = SlurpitVLAN.objects.filter(pk=pk)
-                incomming_obj = incomming_queryset.values(*vlan_fields).first()
-
-                name = str(incomming_queryset.first().name)
-                updated_time = incomming_queryset.first().last_updated
-                title = name
-
-                incomming_change = {**incomming_obj}
-
-                current_queryset = VLAN.objects.filter(name=name, group__name=incomming_change['group'])
-                current_queryset = current_queryset or VLAN.objects.filter(vid=incomming_change['vid'], group__name=incomming_change['group'])
-
-                if current_queryset:
-                    current_obj = current_queryset.values(*vlan_fields).first()
-                    current_obj['name'] = name
-                    current_state = {**current_obj}
-                else:
-                    current_state = None
-                    action = 'Created'
-                
-
-                if current_state and incomming_change:
-                    diff_added = shallow_compare_dict(
-                        current_state or dict(),
-                        incomming_change or dict(),
-                        exclude=['last_updated'],
-                    )
-                    diff_removed = {
-                        x: current_state.get(x) for x in diff_added
-                    } if current_state else {}
-                else:
-                    diff_added = None
-                    diff_removed = None
-
-                object_type = f'{VLAN._meta.app_label} | {VLAN._meta.verbose_name}'
             else:
                 diff_added = None
                 diff_removed = None
@@ -566,12 +489,6 @@ class ReconcileView(generic.ObjectListView):
                             deline_items = models.SlurpitInterface.objects.filter(pk__in=pk_list).delete()
 
                         messages.info(request, "Declined the selected Interfaces successfully .")
-                    elif tab == 'vlan':
-                        if _all:
-                            deline_items = models.SlurpitVLAN.objects.exclude(name='').delete()
-                        else:
-                            deline_items = models.SlurpitVLAN.objects.filter(pk__in=pk_list).delete()
-                        messages.info(request, "Declined the selected VLANs successfully .")
                     elif tab == 'prefix':
                         if _all:
                             deline_items = models.SlurpitPrefix.objects.exclude(prefix=None).delete()
@@ -587,8 +504,6 @@ class ReconcileView(generic.ObjectListView):
                 except:
                     if tab == 'interface':
                         messages.warning(request, "Failed to decline Interfaces.")
-                    elif tab == 'vlan':
-                        messages.warning(request, "Failed to decline Vlans.")
                     elif tab == 'prefix':
                         messages.warning(request, "Failed to decline Prefixes.")
                     else:
@@ -618,7 +533,7 @@ class ReconcileView(generic.ObjectListView):
                             if initial_interface_values[key]:
                                 interface_update_ignore_values.append(key)
 
-                    updated_fields = ['label', 'speed', 'description', 'type', 'duplex', 'module']
+                    updated_fields = ['label', 'speed', 'description', 'type', 'duplex', 'module', 'enabled']
                     fields_to_remove = []
                     
                     for field in updated_fields:
@@ -634,15 +549,19 @@ class ReconcileView(generic.ObjectListView):
                         if netbox_interface:
                             netbox_interface = netbox_interface.first()
 
-                            
+                            if netbox_interface.pk and hasattr(netbox_interface, 'snapshot'):
+                                netbox_interface.snapshot()
+
                             for field in item._meta.fields:
                                 field_name = field.name
                                 field_value = getattr(item, field_name)
                                 if field_name in updated_fields and field_value is not None and field_value != "":
                                     setattr(netbox_interface, field_name, field_value)
 
-                            batch_update_qs.append(netbox_interface)
-                            batch_update_ids.append(item.pk)
+                            netbox_interface.save()
+                            SlurpitInterface.objects.filter(pk=item.pk).delete()
+                            # batch_update_qs.append(netbox_interface)
+                            # batch_update_ids.append(item.pk)
                         else:
                             batch_insert_qs.append(
                                 Interface(
@@ -672,117 +591,21 @@ class ReconcileView(generic.ObjectListView):
                             SlurpitInterface.objects.filter(pk__in=batch_ids).delete()
                         offset += BATCH_SIZE
 
-                    count = len(batch_update_qs)
-                    offset = 0
-                    while offset < count:
-                        batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                        batch_ids = batch_update_ids[offset:offset + BATCH_SIZE]
-                        to_import = []        
-                        for interface_item in batch_qs:
-                            to_import.append(interface_item)
+                    # count = len(batch_update_qs)
+                    # offset = 0
+                    # while offset < count:
+                    #     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
+                    #     batch_ids = batch_update_ids[offset:offset + BATCH_SIZE]
+                    #     to_import = []        
+                    #     for interface_item in batch_qs:
+                    #         to_import.append(interface_item)
 
-                        with transaction.atomic():
-                            Interface.objects.bulk_update(to_import, fields=updated_fields)
+                    #     with transaction.atomic():
+                    #         Interface.objects.bulk_update(to_import, fields=updated_fields)
                         
-                            SlurpitInterface.objects.filter(pk__in=batch_ids).delete()
+                    #         SlurpitInterface.objects.filter(pk__in=batch_ids).delete()
 
-                        offset += BATCH_SIZE
-                elif tab == 'vlan':
-                    if _all:
-                        reconcile_items = SlurpitVLAN.objects.exclude(name='')
-                    else:
-                        reconcile_items = SlurpitVLAN.objects.filter(pk__in=pk_list)
-
-                    initial_obj = SlurpitVLAN.objects.filter(name='').values(
-                        'ignore_status', 'ignore_role', 'ignore_tenant', 'ignore_description'
-                    ).first()
-                    initial_vlan_values = {}
-                    vlan_update_ignore_values = []
-
-                    if initial_obj:
-                        initial_vlan_values = {**initial_obj}
-
-                        for key in initial_vlan_values.keys():
-                            if initial_vlan_values[key]:
-                                vlan_update_ignore_values.append(key)
-
-                    updated_fields = ['status', 'role', 'tenant', 'description', 'name']
-                    fields_to_remove = []
-                    
-                    for field in updated_fields:
-                        ignore_field = f'ignore_{field}'
-                        if ignore_field in vlan_update_ignore_values:
-                            fields_to_remove.append(field)
-
-                    updated_fields = list(set(updated_fields) - set(fields_to_remove))
-
-                    for item in reconcile_items:
-                        netbox_vlan = VLAN.objects.filter(name=item.name, group__name=item.group)
-                        if not netbox_vlan:
-                            netbox_vlan = VLAN.objects.filter(vid=item.vid, group__name=item.group)
-
-                        # If the vlan is existed in netbox
-                        if netbox_vlan:
-                            netbox_vlan = netbox_vlan.first()
-                            
-                            for field in item._meta.fields:
-                                field_name = field.name
-                                field_value = getattr(item, field_name)
-                                if field_name in updated_fields and field_value is not None and field_value != "":
-                                    setattr(netbox_vlan, field_name, field_value)
-
-                            batch_update_qs.append(netbox_vlan)
-                            batch_update_ids.append(item.pk)
-                        else:
-                            group = VLANGroup.objects.filter(name=item.group)
-                            print("vlan")
-                            print(group)
-                            if group:
-                                group = group.first()
-                            else:
-                                group = VLANGroup.objects.create(name=item.group, slug=item.group)
-                                
-                            batch_insert_qs.append(
-                                VLAN(
-                                    name = item.name,
-                                    group = group, 
-                                    vid = item. vid, 
-                                    status = item.status,
-                                    description = item.description,
-                                    role = item.role,
-                                    tenant = item.tenant
-                            ))
-                            batch_insert_ids.append(item.pk)
-                        
-                    count = len(batch_insert_qs)
-                    offset = 0
-                    while offset < count:
-                        batch_qs = batch_insert_qs[offset:offset + BATCH_SIZE]
-                        batch_ids = batch_insert_ids[offset:offset + BATCH_SIZE]
-                        to_import = []        
-                        for vlan_item in batch_qs:
-                            to_import.append(vlan_item)
-
-                        with transaction.atomic():
-                            VLAN.objects.bulk_create(to_import)
-                            SlurpitVLAN.objects.filter(pk__in=batch_ids).delete()
-                        offset += BATCH_SIZE
-
-                    count = len(batch_update_qs)
-                    offset = 0
-                    while offset < count:
-                        batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                        batch_ids = batch_update_ids[offset:offset + BATCH_SIZE]
-                        to_import = []        
-                        for vlan_item in batch_qs:
-                            to_import.append(vlan_item)
-
-                        with transaction.atomic():
-                            VLAN.objects.bulk_update(to_import, fields=updated_fields)
-                        
-                            SlurpitVLAN.objects.filter(pk__in=batch_ids).delete()
-
-                        offset += BATCH_SIZE
+                    #     offset += BATCH_SIZE
                 elif tab == 'prefix':
                     if _all:
                         reconcile_items =SlurpitPrefix.objects.exclude(prefix=None)
@@ -817,7 +640,10 @@ class ReconcileView(generic.ObjectListView):
                         # If the prefix is existed in netbox
                         if netbox_prefix:
                             netbox_prefix = netbox_prefix.first()
-                            
+
+                            if netbox_prefix.pk and hasattr(netbox_prefix, 'snapshot'):
+                                netbox_prefix.snapshot()
+
                             for field in item._meta.fields:
                                 field_name = field.name
                                 field_value = getattr(item, field_name)
@@ -827,8 +653,11 @@ class ReconcileView(generic.ObjectListView):
                             if item.description is None:
                                 netbox_prefix.description = ""
                             
-                            batch_update_qs.append(netbox_prefix)
-                            batch_update_ids.append(item.pk)
+                            netbox_prefix.save()
+                            SlurpitPrefix.objects.filter(pk=item.pk).delete()
+
+                            # batch_update_qs.append(netbox_prefix)
+                            # batch_update_ids.append(item.pk)
                         else:
                             batch_insert_qs.append(
                                 Prefix(
@@ -857,21 +686,22 @@ class ReconcileView(generic.ObjectListView):
                             SlurpitPrefix.objects.filter(pk__in=batch_ids).delete()
                         offset += BATCH_SIZE
 
-                    count = len(batch_update_qs)
-                    offset = 0
-                    while offset < count:
-                        batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                        batch_ids = batch_update_ids[offset:offset + BATCH_SIZE]
-                        to_import = []        
-                        for prefix_item in batch_qs:
-                            to_import.append(prefix_item)
-
-                        with transaction.atomic():
-                            Prefix.objects.bulk_update(to_import, fields=updated_fields)
+                    # count = len(batch_update_qs)
+                    # offset = 0
+                    # while offset < count:
+                    #     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
+                    #     batch_ids = batch_update_ids[offset:offset + BATCH_SIZE]
+                    #     to_import = []        
+                    #     for prefix_item in batch_qs:
+                    #         to_import.append(prefix_item)
                         
-                            SlurpitPrefix.objects.filter(pk__in=batch_ids).delete()
+                    #     with transaction.atomic():
+                    #         Prefix.objects.bulk_update(to_import, fields=updated_fields)
+                        
+                    #         SlurpitPrefix.objects.filter(pk__in=batch_ids).delete()
 
-                        offset += BATCH_SIZE
+                        
+                    #     offset += BATCH_SIZE
                 else:
                     if _all:
                         reconcile_items =SlurpitInitIPAddress.objects.exclude(address=None)
@@ -908,6 +738,9 @@ class ReconcileView(generic.ObjectListView):
                         if netbox_ipaddress:
                             netbox_ipaddress = netbox_ipaddress.first()
 
+                            if netbox_ipaddress.pk and hasattr(netbox_ipaddress, 'snapshot'):
+                                netbox_ipaddress.snapshot()
+
                             for field in item._meta.fields:
                                 field_name = field.name
                                 field_value = getattr(item, field_name)
@@ -921,8 +754,11 @@ class ReconcileView(generic.ObjectListView):
                             if item.description is None:
                                 netbox_ipaddress.description = ""
 
-                            batch_update_qs.append(netbox_ipaddress)
-                            batch_update_ids.append(item.pk)
+                            netbox_ipaddress.save()
+                            SlurpitInitIPAddress.objects.filter(pk=item.pk).delete()
+
+                            # batch_update_qs.append(netbox_ipaddress)
+                            # batch_update_ids.append(item.pk)
                         else:
                             batch_insert_qs.append(
                                 IPAddress(
@@ -951,29 +787,27 @@ class ReconcileView(generic.ObjectListView):
                             SlurpitInitIPAddress.objects.filter(pk__in=batch_ids).delete()
                         offset += BATCH_SIZE
 
-                    count = len(batch_update_qs)
-                    offset = 0
-                    while offset < count:
-                        batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                        batch_ids = batch_update_ids[offset:offset + BATCH_SIZE]
-                        to_import = []        
-                        for ipaddress_item in batch_qs:
-                            to_import.append(ipaddress_item)
+                    # count = len(batch_update_qs)
+                    # offset = 0
+                    # while offset < count:
+                    #     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
+                    #     batch_ids = batch_update_ids[offset:offset + BATCH_SIZE]
+                    #     to_import = []        
+                    #     for ipaddress_item in batch_qs:
+                    #         to_import.append(ipaddress_item)
 
-                        with transaction.atomic():
-                            IPAddress.objects.bulk_update(to_import, fields=updated_fields)
+                    #     with transaction.atomic():
+                    #         IPAddress.objects.bulk_update(to_import, fields=updated_fields)
                         
-                            SlurpitInitIPAddress.objects.filter(pk__in=batch_ids).delete()
+                    #         SlurpitInitIPAddress.objects.filter(pk__in=batch_ids).delete()
 
-                        offset += BATCH_SIZE
+                    #     offset += BATCH_SIZE
         else:
             messages.warning(request, "No Reconcile Items were selected.")
 
             if action == 'accept':
                 if tab == 'interface':
                     log_message = "Failed to accept since no ip addresses were selected."
-                elif tab == 'vlan':
-                    log_message = "Failed to accept since no vlans were selected."
                 elif tab == 'prefix':
                     log_message = "Failed to accept since no prefixes were selected."
                 else:
@@ -981,8 +815,6 @@ class ReconcileView(generic.ObjectListView):
             else:
                 if tab == 'interface':
                     log_message = "Failed to decline since no ip addresses were selected."
-                elif tab == 'vlan':
-                    log_message = "Failed to decline since no vlans were selected."
                 elif tab == 'prefix':
                     log_message = "Failed to decline since no prefixes were selected."
                 
@@ -1028,7 +860,6 @@ class ReconcileDetailView(generic.ObjectView):
             incomming_obj['device'] = device
 
             incomming_change = {**incomming_obj}
-
             current_queryset = Interface.objects.filter(name=name, device=device)
 
             if current_queryset:
@@ -1187,10 +1018,6 @@ class SlurpitIPAddressEditView(generic.ObjectEditView):
     form = forms.SlurpitInitIPAMEditForm
     template_name = 'slurpit_netbox/object_edit.html'
 
-class SlurpitVLANEditView(generic.ObjectEditView):
-    queryset = SlurpitVLAN.objects.all()
-    form = forms.SlurpitVLANEditForm
-    template_name = 'slurpit_netbox/object_edit.html'
 
 
 class SlurpitInterfaceBulkEditView(generic.BulkEditView):
@@ -1210,11 +1037,4 @@ class SlurpitIPAddressBulkEditView(generic.BulkEditView):
     filterset = SlurpitIPAddressFilterSet
     table = tables.SlurpitIPAMTable
     form = forms.SlurpitIPAddressBulkEditForm
-    template_name = 'slurpit_netbox/object_bulkedit.html'
-
-class SlurpitVLANBulkEditView(generic.BulkEditView):
-    queryset = SlurpitVLAN.objects.all()
-    filterset = SlurpitVLANFilterSet
-    form = forms.SlurpitVLANBulkEditForm
-    table = tables.SlurpitVLANTable
     template_name = 'slurpit_netbox/object_bulkedit.html'

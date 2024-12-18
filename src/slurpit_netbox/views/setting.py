@@ -131,6 +131,10 @@ class SettingsView(View):
                     "url": "api/plugins/slurpit/prefix/"
                 },
                 {
+                    "type": "GET",
+                    "url": "api/plugins/slurpit/prefix/all/"
+                },
+                {
                     "type": "POST",
                     "url": "api/plugins/slurpit/device/"
                 },

@@ -12,7 +12,7 @@ def create_form(form, data, model, initial):
 def get_form_device_data(form):
     return {
             'role': form.cleaned_data['role'],
-            # 'site': form.cleaned_data['site'],
+            'status': form.cleaned_data['status'],
             'location': form.cleaned_data['location'],
             'rack': form.cleaned_data['rack'],
             'position': form.cleaned_data['position'],
@@ -44,6 +44,9 @@ def get_default_objects():
 
 def status_inventory():
     return DeviceStatusChoices.STATUS_INVENTORY
+
+def status_active():
+    return DeviceStatusChoices.STATUS_ACTIVE
 
 def status_offline():
     return DeviceStatusChoices.STATUS_OFFLINE
