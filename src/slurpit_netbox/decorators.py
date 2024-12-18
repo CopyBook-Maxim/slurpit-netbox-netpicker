@@ -1,5 +1,5 @@
 from functools import wraps
-from .models import SlurpitSetting, ensure_slurpit_tags
+from .models import SlurpitSetting, ensure_slurpit_tags, create_custom_fields
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib import messages
 from account.models import UserToken
@@ -11,6 +11,7 @@ def slurpit_plugin_registered(view_func):
         if not request.user.is_authenticated:
             return redirect('login')
 
+        create_custom_fields()
         ensure_slurpit_tags()
         
         paths = [
