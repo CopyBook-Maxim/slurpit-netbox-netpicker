@@ -259,6 +259,9 @@ class SlurpitInterfaceView(SlurpitViewSet):
                         record['enabled'] = False
                     del record['status']
 
+                if 'description' in record:
+                    record['description'] = str(record['description'])
+                    
                 new_data = {**initial_interface_values, **record}
                 total_data.append(new_data)
        
