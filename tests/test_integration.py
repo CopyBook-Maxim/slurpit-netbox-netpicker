@@ -363,7 +363,7 @@ def test_interface(setup):
         }
     ]
     response = do_request('interface/', method="POST", data=valid_interfaces)
-    assert response.status_code == 200, f"Interfacce import is Failed. Status wasnt 200 \n{response.json()}"
+    assert response.status_code == 200, f"Interface import is Failed. Status wasnt 200 \n{response.json()}"
 
     check_direct_sync_interface(valid_interfaces)
 
