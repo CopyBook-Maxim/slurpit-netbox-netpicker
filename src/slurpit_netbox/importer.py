@@ -53,8 +53,8 @@ def get_devices(offset):
         # r.raise_for_status()
         data = r.json()
         return data, ""
-    except ObjectDoesNotExist:
-        setting = None
+    except ObjectDoesNotExist as e:
+        log_message = "Api key not configured in settings"
         return None, log_message
     except Exception as e:
         log_message = "Please confirm the Slurp'it server is running and reachable."
@@ -125,8 +125,8 @@ def sync_sites():
         create_sites(data)
 
         return data, ""
-    except ObjectDoesNotExist:
-        setting = None
+    except ObjectDoesNotExist as e:
+        log_message = "Api key not configured in settings"
         return None, log_message
     except Exception as e:
         print(e)
