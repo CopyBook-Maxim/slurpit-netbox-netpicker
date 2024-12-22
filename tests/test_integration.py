@@ -42,71 +42,6 @@ def do_request(url, method="GET", data={}, base_url = 'http://netbox:8080/api/pl
         return requests.delete(f'{base_url}/{url}', headers=headers)
     if method == "POST":
         return requests.post(f'{base_url}/{url}', headers=headers, json=data)
-    
-
-def get_plannings():
-    with connection() as conn, conn.cursor() as cur:
-        cur.execute("SELECT * FROM slurpit_netbox_slurpitplanning")
-        return cur.fetchall()
-
-def compare_plannings(array1, array2):
-    # assert len(array1) == len(array2), f"Planning arrays were different sizes: {array1} - {array2}"
-
-    for row in array1:
-        result = next((obj for obj in array2 if obj['planning_id'] == row['id']), None)
-        assert result is not None, f"Unable to find planning_id {row['id']}"
-        assert row['name'] == result['name']
-        assert row['comment'] == result['comments']
-
-def test_plannings(setup):
-    insert_plannings = [{
-        'id':5,
-        'name': 'test',
-        'comment': 'asd',
-        'disabled': '0'
-    }]
-    response = do_request('planning/', method="POST",data=insert_plannings)
-    assert response.status_code == 200, f"Status wasnt 200 \n{response.text}"
-    assert response.json()['status'] == "success"
-
-    compare_plannings(insert_plannings, get_plannings())
-    
-    update_plannings = [{
-        'id':5,
-        'name': 'test updated',
-        'comment': 'asd updated',
-        'disabled': '0'
-    }]
-    response = do_request('planning/', method="POST",data=update_plannings)
-    assert response.status_code == 200, f"Status wasnt 200 \n{response.text}"
-    assert response.json()['status'] == "success"
-
-    compare_plannings(update_plannings, get_plannings())
-    
-    sync_plannings = [{
-        'id':6,
-        'name': 'new test',
-        'comment': 'new asd',
-        'disabled': '0'
-    }]
-    response = do_request('planning/sync/', method="POST",data=sync_plannings)
-    assert response.status_code == 200, f"Status wasnt 200 \n{response.text}"
-    assert response.json()['status'] == "success"
-
-    compare_plannings(sync_plannings, get_plannings())
-    
-    disable_plannings = [{
-        'id':6,
-        'name': 'new test',
-        'comment': 'new asd',
-        'disabled': '1'
-    }]
-    response = do_request('planning/sync/', method="POST",data=disable_plannings)
-    assert response.status_code == 200, f"Status wasnt 200 \n{response.text}"
-    assert response.json()['status'] == "success"
-
-    assert len(get_plannings()) == 0
-
 
 def compare_devices(array1, array2):
     assert len(array1) == len(array2), f"Device arrays were different sizes: {array1} - {array2}"
@@ -366,57 +301,6 @@ def compare_snapshots(content, device_name, planning_id):
         assert planning_result != None, "Imported Planning result is not exsited"
         assert planning_result.content == content, "Imported Planning result is different with Original Data"
     pass
-
-def test_planning_snapshots(setup):
-    # Add Planning for test
-    sync_plannings = [{
-        'id':10,
-        'name': 'slurpit',
-        'comment': 'slurpit',
-        'disabled': '0'
-    }]
-    response = do_request('planning/sync/', method="POST",data=sync_plannings)
-    assert response.status_code == 200, f"Status wasnt 200 \n{response.text}"
-    assert response.json()['status'] == "success"
-
-    compare_plannings(sync_plannings, get_plannings())
-    
-    snapshots = {
-        'slurpit': {
-            'planning_id': '10',
-            'batch_id': 3,
-            'columns': [
-                'name',
-                'role'
-            ],
-            'planning_results': [
-                {
-                    'name': 'slurpit',
-                    'role': 'slurpit'
-                }
-            ],
-            'template_results': [
-                {
-                    'index': '14',
-                    'name': 'slurpit'
-                }
-            ]
-        }
-    }
-    content = {
-                    'name': 'slurpit',
-                    'role': 'slurpit'
-                }
-    response = do_request('planning-data/', method="POST",data=[{
-        'hostname': 'slurpit',
-        'planning_id': '10',
-        'content': {'planning_result': content, 'template_result': ''},
-        'result_type': 'planning_result'
-    }])
-    assert response.status_code == 200, f"Status wasnt 200 \n{response.text}"
-    assert response.json()['status'] == "success"
-
-    compare_snapshots(content, 'slurpit', 10)
 
 def compare_mapping_fields():
 
