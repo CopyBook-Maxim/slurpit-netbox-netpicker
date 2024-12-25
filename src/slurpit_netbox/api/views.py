@@ -198,7 +198,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
             # Get initial values for Interface
             enable_reconcile = True
             initial_obj = SlurpitInterface.objects.filter(name='').values(
-                'module', 'type', 'speed', 'label', 'description', 'duplex', 'enable_reconcile', 'ignore_module', 'ignore_type', 'ignore_speed', 'ignore_duplex'
+                'module', 'type', 'speed', 'label', 'description', 'duplex', 'enable_reconcile', 'ignore_module', 'ignore_type', 'ignore_speed', 'ignore_duplex', 'enabled'
             ).first()
             initial_interface_values = {}
             interface_update_ignore_values = []
@@ -218,7 +218,8 @@ class SlurpitInterfaceView(SlurpitViewSet):
                     'description': '',
                     'speed': 0,
                     'duplex': None,
-                    'module': None
+                    'module': None,
+                    'enabled': True
                 }
 
                 # device = None
@@ -429,7 +430,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
 
             return JsonResponse({'status': 'success'})
         except Exception as e:
-            return JsonResponse({'status': 'errors', 'errors': str(e)}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': f"Process threw error: {e}"}, status=400)
         
 class SlurpitIPAMView(SlurpitViewSet):
     queryset = IPAddress.objects.all()
@@ -515,7 +516,7 @@ class SlurpitIPAMView(SlurpitViewSet):
 
                         allowed_fields_with_none = {'status'}
                         allowed_fields = {'role', 'tenant', 'dns_name', 'description'}
-
+                        update = False
                         for field, value in item.items():
                             current = getattr(slurpit_ipaddress_item, field, None)
                             if current != value:
@@ -763,7 +764,7 @@ class SlurpitPrefixView(SlurpitViewSet):
 
                         allowed_fields_with_none = {'status'}
                         allowed_fields = {'role', 'tenant', 'site', 'vlan', 'vrf', 'description'}
-
+                        update = False
                         for field, value in item.items():
                             current = getattr(slurpit_prefix_item, field, None)
                             if current != value:
@@ -1015,6 +1016,7 @@ class SlurpitVLANView(SlurpitViewSet):
 
                         allowed_fields_with_none = {'status'}
                         allowed_fields = {'role', 'tenant', 'description'}
+                        update = False
 
                         for field, value in item.items():
                             current = getattr(slurpit_vlan_item, field, None)
