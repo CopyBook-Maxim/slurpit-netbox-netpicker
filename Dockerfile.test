@@ -1,11 +1,11 @@
 FROM netboxcommunity/netbox:v4.1
 
 # RUN pip install --upgrade pip && pip install poetry
-ENV BRANCH "dev"
 
 COPY /docker/configuration/configuration.py /etc/netbox/config/configuration.py
 COPY /docker/configuration/plugins.py /etc/netbox/config/plugins.py
 
+ARG BRANCH="dev"
 RUN pip install --no-cache-dir slurpit_netbox-$BRANCH --index-url https://gitlab.com/api/v4/projects/52056325/packages/pypi/simple --upgrade
 
 # RUN apt-get update && apt-get install -y git

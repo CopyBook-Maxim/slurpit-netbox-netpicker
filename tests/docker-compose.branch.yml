@@ -11,6 +11,8 @@ services:
     build: 
       context: ../
       dockerfile: Dockerfile.test
+      args:
+        BRANCH: ${CI_COMMIT_REF_NAME:-dev}
     depends_on:
     - postgres_test
     - redis_test
@@ -22,8 +24,6 @@ services:
       timeout: 3s
       interval: 15s
       test: "curl -f http://localhost:8080/api/ || exit 1"
-    environment:
-      BRANCH: ${CI_COMMIT_REF_NAME:-dev}
     networks:
     - slurpit-netbox-test-network
     
@@ -41,8 +41,6 @@ services:
       timeout: 3s
       interval: 15s
       test: "ps -aux | grep -v grep | grep -q rqworker || exit 1"
-    environment:
-      BRANCH: ${CI_COMMIT_REF_NAME:-dev}
     networks:
     - slurpit-netbox-test-network
 
@@ -58,8 +56,6 @@ services:
       timeout: 3s
       interval: 15s
       test: "ps -aux | grep -v grep | grep -q housekeeping || exit 1"
-    environment:
-      BRANCH: ${CI_COMMIT_REF_NAME:-dev}
     networks:
     - slurpit-netbox-test-network
 

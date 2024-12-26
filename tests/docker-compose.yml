@@ -1,4 +1,3 @@
-version: '3.4'
 name: netbox-test
 services:
   test_container:
