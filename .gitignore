@@ -4,5 +4,6 @@ dist/*
 .idea
 **/*.egg-info/*
 volumes/*
+volumes.*
 poetry.lock
 docker-compose.override.yml
