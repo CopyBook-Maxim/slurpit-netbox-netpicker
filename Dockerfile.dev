@@ -1,4 +1,4 @@
-FROM netboxcommunity/netbox:v4.1
+FROM netboxcommunity/netbox:v4.2
 
 # RUN pip install --upgrade pip && pip install poetry
 
