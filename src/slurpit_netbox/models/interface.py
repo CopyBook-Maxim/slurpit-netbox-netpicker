@@ -32,7 +32,8 @@ class ComponentModel(NetBoxModel):
     )
     _name = NaturalOrderingField(
         target_field='name',
-        max_length=100,
+        max_length=100,        
+        naturalize_function=naturalize_interface,
         blank=True
     )
     label = models.CharField(
