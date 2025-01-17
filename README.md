@@ -9,6 +9,7 @@ or e-mail us on: support@slurpit.io
 
 | NetBox Version | Plugin Version |
 |----------------|----------------|
+|   NetBox 4.2   |    >= 1.1.x    |
 |   NetBox 4.1   |    >= 1.0.x    |
 |   NetBox 4.0   |    >= 0.9.x    |
 |   NetBox 3.7   |    >= 0.8.x    |

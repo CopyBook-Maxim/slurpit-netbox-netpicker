@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='slurpit_netbox',
-    version='1.1.2',
+    version='1.1.3',
     description="Sync Slurp'IT into NetBox",
     install_requires=[
         'requests', 'djangorestframework-bulk'
