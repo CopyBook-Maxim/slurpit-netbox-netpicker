@@ -1,4 +1,5 @@
 import json
+import traceback
 from datetime import timedelta
 
 from rest_framework.routers import APIRootView
@@ -430,7 +431,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
 
             return JsonResponse({'status': 'success'})
         except Exception as e:
-            return JsonResponse({'status': 'errors', 'errors': f"Process threw error: {e}"}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': f"Process threw error: {e} - {traceback.format_exc()}"}, status=400)
         
 class SlurpitIPAMView(SlurpitViewSet):
     queryset = IPAddress.objects.all()
@@ -672,16 +673,19 @@ class SlurpitPrefixView(SlurpitViewSet):
             return JsonResponse({'status': 'error', 'errors': errors}, status=400)
 
         vrf = None
-        site = None
         tenant = None
         vlan = None
         role = None
+        site = None
+        site_group = None
+        location = None
+        region = None
             
         try:
             # Get initial values for prefix
             enable_reconcile = True
             initial_obj = SlurpitPrefix.objects.filter(prefix=None).values(
-                'status', 'vrf', 'role', 'site', 'vlan', 'tenant', 'enable_reconcile', 'description', 'ignore_status', 'ignore_vrf', 'ignore_role', 'ignore_site', 'ignore_vlan', 'ignore_tenant', 'ignore_description'
+                'status', 'vrf', 'role', 'vlan', 'tenant', 'enable_reconcile', 'description', 'ignore_status', 'ignore_vrf', 'ignore_role', 'ignore_site', 'ignore_vlan', 'ignore_tenant', 'ignore_description', '_site', '_site_group', '_region', '_location'
             ).first()
             initial_prefix_values = {}
             prefix_update_ignore_values = []
@@ -693,20 +697,29 @@ class SlurpitPrefixView(SlurpitViewSet):
 
                 if initial_prefix_values['vrf'] is not None:
                     vrf = VRF.objects.get(pk=initial_prefix_values['vrf'])
-                if initial_prefix_values['site'] is not None:
-                    site = Site.objects.get(pk=initial_prefix_values['site'])
                 if initial_prefix_values['tenant'] is not None:
                     tenant = Tenant.objects.get(pk=initial_prefix_values['tenant'])
                 if initial_prefix_values['vlan'] is not None:
                     vlan = VLAN.objects.get(pk=initial_prefix_values['vlan'])
                 if initial_prefix_values['role'] is not None:
                     role = Role.objects.get(pk=initial_prefix_values['role'])
+                if initial_prefix_values['_site'] is not None:
+                    site = Site.objects.get(pk=initial_prefix_values['_site'])
+                if initial_prefix_values['_site_group'] is not None:
+                    site_group = SiteGroup.objects.get(pk=initial_prefix_values['_site_group'])
+                if initial_prefix_values['_location'] is not None:
+                    location = Location.objects.get(pk=initial_prefix_values['_location'])
+                if initial_prefix_values['_region'] is not None:
+                    region = Region.objects.get(pk=initial_prefix_values['_region'])
 
                 initial_prefix_values['vrf'] = vrf
-                initial_prefix_values['site'] = site
                 initial_prefix_values['tenant'] = tenant
                 initial_prefix_values['vlan'] = vlan
                 initial_prefix_values['role'] = role
+                initial_prefix_values['_site'] = site
+                initial_prefix_values['_site_group'] = site_group
+                initial_prefix_values['_location'] = location
+                initial_prefix_values['_region'] = region
 
                 for key in initial_prefix_values.keys():
                     if key.startswith('ignore_') and initial_prefix_values[key]:
@@ -716,7 +729,10 @@ class SlurpitPrefixView(SlurpitViewSet):
                 initial_prefix_values = {
                     'status': 'active',
                     'vrf': None,
-                    'site': None,
+                    '_site': None,
+                    '_site_group': None,
+                    '_location': None,
+                    '_region': None,
                     'tenant': None,
                     'vlan': None,
                     'role': None,
@@ -763,7 +779,7 @@ class SlurpitPrefixView(SlurpitViewSet):
                         slurpit_prefix_item = slurpit_prefix_item.first()
 
                         allowed_fields_with_none = {'status'}
-                        allowed_fields = {'role', 'tenant', 'site', 'vlan', 'vrf', 'description'}
+                        allowed_fields = {'role', 'tenant', 'vlan', 'vrf', 'description', '_site', '_site_group', '_location', '_region'}
                         update = False
                         for field, value in item.items():
                             current = getattr(slurpit_prefix_item, field, None)
@@ -779,8 +795,8 @@ class SlurpitPrefixView(SlurpitViewSet):
                     else:
                         obj = Prefix.objects.filter(prefix=item['prefix'], vrf=item['vrf'])
                         
-                        fields = {'status', 'vrf', 'vlan', 'tenant', 'site', 'role', 'description'}
-                        not_null_fields = {'vlan', 'tenant', 'site', 'role', 'description'}
+                        fields = {'status', 'vrf', 'vlan', 'tenant', 'role', 'description', '_site', '_site_group', '_location', '_region'}
+                        not_null_fields = {'vlan', 'tenant', 'role', 'description', '_site', '_site_group', '_location', '_region'}
                         
                         new_prefix = {}
 
@@ -822,7 +838,7 @@ class SlurpitPrefixView(SlurpitViewSet):
                 offset = 0
                 while offset < count:
                     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                    SlurpitPrefix.objects.bulk_update(batch_qs, fields={'description', 'vrf', 'tenant', 'status', 'vlan', 'site', 'role'})
+                    SlurpitPrefix.objects.bulk_update(batch_qs, fields={'description', 'vrf', 'tenant', 'status', 'vlan', 'role', '_site', '_site_group', '_location', '_region'})
                     offset += BATCH_SIZE
 
                 duplicates = SlurpitPrefix.objects.values('prefix', 'vrf').annotate(count=Count('id')).filter(count__gt=1)
@@ -878,7 +894,7 @@ class SlurpitPrefixView(SlurpitViewSet):
                     
                     # Update
                     allowed_fields_with_none = {'status'}
-                    allowed_fields = {'role', 'tenant', 'site', 'vlan', 'description', 'vrf'}
+                    allowed_fields = {'role', 'tenant', 'vlan', 'description', 'vrf', '_site', '_site_group', '_location', '_region'}
 
                     for field, value in update_item.items():
                         ignore_field = f'ignore_{field}'
@@ -903,7 +919,7 @@ class SlurpitPrefixView(SlurpitViewSet):
 
                     Prefix.objects.bulk_update(to_import, 
                         fields={
-                            'description', 'vrf', 'tenant', 'status', 'vlan', 'site', 'role'
+                            'description', 'vrf', 'tenant', 'status', 'vlan', 'role', '_site', '_site_group', '_location', '_region'
                         }
                     )
                     offset += BATCH_SIZE
@@ -911,7 +927,7 @@ class SlurpitPrefixView(SlurpitViewSet):
 
             return JsonResponse({'status': 'success'})
         except Exception as e:
-            return JsonResponse({'status': 'errors', 'errors': str(e)}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': f"Process threw error: {e} - {traceback.format_exc()}"}, status=400)
 
     @action(detail=False, methods=['get'], url_path='all')
     def all(self, request, *args, **kwargs):

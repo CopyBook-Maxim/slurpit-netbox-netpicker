@@ -144,7 +144,6 @@ def set_reconcile(is_enable):
             'UPDATE slurpit_netbox_slurpitinitipaddress SET enable_reconcile = %s, role = %s WHERE address IS NULL',
             (is_enable, "")
         )
-        print(cur.rowcount)
         conn.commit()
         # Not Existed Case
         if cur.rowcount == 0:
@@ -258,7 +257,7 @@ def test_ipams(setup):
         }
     ]
     response = do_request('ipam/', method="POST", data=invalid_ipams)
-    assert response.status_code == 400, f"Validation is Failed. Status wasnt 400 \n{response.json()}"
+    assert response.status_code == 400, f"Validation has Failed. Status wasnt 400 \n{response.json()}"
 
     valid_ipams = [
         {
@@ -268,7 +267,7 @@ def test_ipams(setup):
         }
     ]
     response = do_request('ipam/', method="POST", data=valid_ipams)
-    assert response.status_code == 200, f"IPAM import is Failed. Status wasnt 200 \n{response.json()}"
+    assert response.status_code == 200, f"IPAM import has Failed. Status wasnt 200 \n{response.json()}"
 
     check_direct_sync_ipam(valid_ipams)
 
@@ -283,7 +282,7 @@ def test_ipams(setup):
         }
     ]
     response = do_request('ipam/', method="POST", data=valid_ipams)
-    assert response.status_code == 200, f"IPAM import is Failed. Status wasnt 200 \n{response.json()}"
+    assert response.status_code == 200, f"IPAM import has Failed. Status wasnt 200 \n{response.json()}"
 
     check_reconcile_sync_ipam(valid_ipams)
 
@@ -350,7 +349,7 @@ def test_interface(setup):
         }
     ]
     response = do_request('interface/', method="POST", data=invalid_interfaces)
-    assert response.status_code == 400, f"Validation is Failed. Status wasnt 400 \n{response.json()}"
+    assert response.status_code == 400, f"Validation has Failed. Status wasnt 400 \n{response.json()}"
 
     add_device_to_netbox()
 
@@ -363,7 +362,7 @@ def test_interface(setup):
         }
     ]
     response = do_request('interface/', method="POST", data=valid_interfaces)
-    assert response.status_code == 200, f"Interface import is Failed. Status wasnt 200 \n{response.json()}"
+    assert response.status_code == 200, f"Interface import has Failed. Status wasnt 200 \n{response.json()}"
 
     check_direct_sync_interface(valid_interfaces)
 
@@ -378,7 +377,7 @@ def test_interface(setup):
         }
     ]
     response = do_request('interface/', method="POST", data=valid_interfaces)
-    assert response.status_code == 200, f"Interface import is Failed. Status wasnt 200 \n{response.json()}"
+    assert response.status_code == 200, f"Interface import has Failed. Status wasnt 200 \n{response.json()}"
 
     check_reconcile_sync_interface(valid_interfaces)
 
@@ -392,7 +391,7 @@ def test_prefix(setup):
         }
     ]
     response = do_request('prefix/', method="POST", data=invalid_prefixes)
-    assert response.status_code == 400, f"Validation is Failed. Status wasnt 400 \n{response.json()}"
+    assert response.status_code == 400, f"Validation has Failed. Status wasnt 400 \n{response.json()}"
 
     valid_prefixes = [
         {
@@ -400,7 +399,7 @@ def test_prefix(setup):
         }
     ]
     response = do_request('prefix/', method="POST", data=valid_prefixes)
-    assert response.status_code == 200, f"Prefix import is Failed. Status wasnt 200 \n{response.json()}"
+    assert response.status_code == 200, f"Prefix import has Failed. Status wasnt 200 \n{response.json()}"
 
     check_direct_sync_prefix(valid_prefixes)
 
@@ -412,7 +411,7 @@ def test_prefix(setup):
         }
     ]
     response = do_request('prefix/', method="POST", data=valid_prefixes)
-    assert response.status_code == 200, f"Prefix import is Failed. Status wasnt 200 \n{response.json()}"
+    assert response.status_code == 200, f"Prefix import has Failed. Status wasnt 200 \n{response.json()}"
     check_reconcile_sync_prefix(valid_prefixes)
 
 def set_reconcile_for_vlan(is_enable):
@@ -442,7 +441,7 @@ def test_vlan(setup):
         }
     ]
     response = do_request('vlan/', method="POST", data=invalid_vlans)
-    assert response.status_code == 400, f"Validation is Failed. Status wasnt 400 \n{response.json()}"
+    assert response.status_code == 400, f"Validation has Failed. Status wasnt 400 \n{response.json()}"
 
     valid_vlans = [
         {
@@ -452,7 +451,7 @@ def test_vlan(setup):
         }
     ]
     response = do_request('vlan/', method="POST", data=valid_vlans)
-    assert response.status_code == 200, f"VLAN import is Failed. Status wasnt 200 \n{response.json()}"
+    assert response.status_code == 200, f"VLAN import has Failed. Status wasnt 200 \n{response.json()}"
 
     check_direct_sync_vlan(valid_vlans)
 
@@ -471,5 +470,5 @@ def test_vlan(setup):
         }
     ]
     response = do_request('vlan/', method="POST", data=valid_vlans)
-    assert response.status_code == 200, f"VLAN import is Failed. Status wasnt 200 \n{response.json()}"
+    assert response.status_code == 200, f"VLAN import has Failed. Status wasnt 200 \n{response.json()}"
     check_reconcile_sync_vlan(valid_vlans)

@@ -3,7 +3,7 @@ from netbox.api.viewsets import NetBoxModelViewSet
 from utilities.exceptions import AbortRequest, PermissionsViolation
 from utilities.forms import restrict_form_fields
 from dcim.choices import DeviceStatusChoices
-from dcim.models import  Manufacturer, Platform, DeviceType, Site, Device, DeviceRole
+from dcim.models import  Manufacturer, Platform, DeviceType, Site, SiteGroup, Location, Device, DeviceRole, Region
 from dcim.api.serializers import DeviceSerializer
 from dcim.filtersets import DeviceFilterSet
 from ipam.models import *

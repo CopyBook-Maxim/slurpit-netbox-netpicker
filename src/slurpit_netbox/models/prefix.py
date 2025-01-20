@@ -1,16 +1,20 @@
 from ipam.models import IPAddress, IPRange
 from ipam.fields import IPNetworkField
+from ipam.choices import PrefixStatusChoices
+from ipam.querysets import PrefixQuerySet
+from dcim.models.mixins import CachedScopeMixin
+from netbox.config import get_config
+from netbox.models import PrimaryModel
+
 from django.utils.translation import gettext_lazy as _
 from django.db.models import F
 from django.urls import reverse
 from django.db import models
-from netbox.models import PrimaryModel
-import netaddr
-from ipam.choices import PrefixStatusChoices
-from ipam.querysets import PrefixQuerySet
-from netbox.config import get_config
 from django.core.exceptions import ValidationError
+
 from urllib.parse import urlencode
+import netaddr
+
 class GetAvailablePrefixesMixin:
 
     def get_available_prefixes(self):
@@ -36,7 +40,7 @@ class GetAvailablePrefixesMixin:
         return available_prefixes.iter_cidrs()[0]
     
 
-class SlurpitPrefix(GetAvailablePrefixesMixin, PrimaryModel):
+class SlurpitPrefix(GetAvailablePrefixesMixin, CachedScopeMixin, PrimaryModel):
     prefix = IPNetworkField(
         verbose_name=_('prefix'),
         help_text=_('IPv4 or IPv6 network with mask'),
@@ -49,13 +53,6 @@ class SlurpitPrefix(GetAvailablePrefixesMixin, PrimaryModel):
         verbose_name=_('enable reconcile'),
     )
 
-    site = models.ForeignKey(
-        to='dcim.Site',
-        on_delete=models.PROTECT,
-        related_name='slurpit_prefixes',
-        blank=True,
-        null=True
-    )
     vrf = models.ForeignKey(
         to='ipam.VRF',
         on_delete=models.PROTECT,
@@ -154,7 +151,7 @@ class SlurpitPrefix(GetAvailablePrefixesMixin, PrimaryModel):
     objects = PrefixQuerySet.as_manager()
 
     clone_fields = (
-        'site', 'vrf', 'tenant', 'vlan', 'status', 'role', 'is_pool', 'mark_utilized', 'description',
+        'scope_type', 'scope_id', 'vrf', 'tenant', 'vlan', 'status', 'role', 'is_pool', 'mark_utilized', 'description',
     )
 
     class Meta:

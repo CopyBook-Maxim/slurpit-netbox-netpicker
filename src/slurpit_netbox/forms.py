@@ -415,7 +415,7 @@ class SlurpitPrefixForm(PrefixForm):
     class Meta:
         model = SlurpitPrefix
         fields = [
-            'prefix', 'vrf', 'site', 'vlan', 'status', 'role', 'is_pool', 'mark_utilized', 'tenant_group', 'tenant',
+            'prefix', 'vrf', '_site', '_site_group', '_location', '_region', 'vlan', 'status', 'role', 'is_pool', 'mark_utilized', 'tenant_group', 'tenant',
             'description', 'comments', 'tags','enable_reconcile', 'ignore_status', 'ignore_vrf', 'ignore_role', 'ignore_site', 'ignore_vlan',
             'ignore_tenant', 'ignore_description'
         ]
@@ -479,7 +479,7 @@ class SlurpitInterfaceBulkEditForm(
 
 class SlurpitPrefixBulkEditForm(
     form_from_model(SlurpitPrefix, [
-        'vrf', 'site', 'status', 'role','tenant', 'description', 'comments'
+        'vrf', '_site', '_site_group', '_location', '_region', 'status', 'role','tenant', 'description', 'comments'
     ]),
     NetBoxModelBulkEditForm
 ):
@@ -489,7 +489,7 @@ class SlurpitPrefixBulkEditForm(
     # )
 
     nullable_fields = (
-        'site', 'vrf', 'tenant', 'role', 'description', 'comments',
+        '_site', '_site_group', '_location', '_region', 'scope_type', 'scope_id', 'vrf', 'tenant', 'role', 'description', 'comments',
     )
     tenant = DynamicModelChoiceField(
         label=_('Tenant'),
@@ -508,7 +508,7 @@ class SlurpitPrefixBulkEditForm(
     )
     model = SlurpitPrefix
     fields = [
-       'vrf', 'site', 'vlan', 'status', 'role', 'is_pool', 'mark_utilized', 'tenant_group', 'tenant',
+       'vrf', '_site', '_site_group', '_location', '_region', 'scope_type', 'scope_id', 'vlan', 'status', 'role', 'is_pool', 'mark_utilized', 'tenant_group', 'tenant',
         'description', 'comments', 'tags'
     ]
 
