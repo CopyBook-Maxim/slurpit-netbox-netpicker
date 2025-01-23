@@ -1,27 +1,30 @@
 from core.choices import DataSourceStatusChoices
 from django import forms
-from dcim.choices import DeviceStatusChoices, DeviceAirflowChoices, DeviceStatusChoices, InterfaceSpeedChoices
-from dcim.models import DeviceRole, DeviceType, Site, Location, Region, Rack, Device, Interface, Module
 from django.utils.translation import gettext_lazy as _
-from netbox.api.fields import ChoiceField
-from netbox.forms import NetBoxModelBulkEditForm, NetBoxModelFilterSetForm, NetBoxModelForm
-from utilities.forms import add_blank_choice
-from utilities.forms.fields import CommentField, DynamicModelChoiceField, DynamicModelMultipleChoiceField
-from utilities.forms.widgets import APISelect, NumberWithOptions, HTMXSelect
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from tenancy.models import TenantGroup, Tenant
 from tenancy.forms import TenancyForm
 from .models import SlurpitImportedDevice, SlurpitPlanning, SlurpitSetting, SlurpitInitIPAddress, SlurpitInterface, SlurpitPrefix, SlurpitVLAN
 from .management.choices import SlurpitApplianceTypeChoices
 from extras.models import CustomField
-from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import ValidationError
 from virtualization.models import VMInterface
+
+from netbox.api.fields import ChoiceField
+from netbox.forms import NetBoxModelBulkEditForm, NetBoxModelFilterSetForm, NetBoxModelForm
+
 from ipam.models import FHRPGroup, VRF, IPAddress, VLANGroup, VLAN, Role
 from ipam.choices import *
 from ipam.constants import *
-from dcim.forms.common import InterfaceCommonForm
 from ipam.forms import PrefixForm
-from utilities.forms import form_from_model
+
+from dcim.forms.common import InterfaceCommonForm
+from dcim.choices import DeviceStatusChoices, DeviceAirflowChoices, DeviceStatusChoices, InterfaceSpeedChoices
+from dcim.models import DeviceRole, DeviceType, Site, Location, Region, Rack, Device, Interface, Module
+
+from utilities.forms import form_from_model, add_blank_choice
+from utilities.forms.fields import CommentField, DynamicModelChoiceField, DynamicModelMultipleChoiceField
+from utilities.forms.widgets import APISelect, NumberWithOptions, HTMXSelect
 
 class DeviceComponentForm(NetBoxModelForm):
     device = DynamicModelChoiceField(
@@ -332,6 +335,16 @@ class SlurpitDeviceInterfaceForm(InterfaceCommonForm, ModularDeviceComponentForm
         query_params={
             'group_id': '$vlan_group',
             'available_on_device': '$device',
+        }
+    )
+    qinq_svlan = DynamicModelChoiceField(
+        queryset=VLAN.objects.all(),
+        required=False,
+        label=_('Q-in-Q Service VLAN'),
+        query_params={
+            'group_id': '$vlan_group',
+            'available_on_virtualmachine': '$virtual_machine',
+            'qinq_role': VLANQinQRoleChoices.ROLE_SERVICE,
         }
     )
 
