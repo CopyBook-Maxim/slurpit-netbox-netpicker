@@ -20,7 +20,7 @@ from ipam.forms import PrefixForm
 
 from dcim.forms.common import InterfaceCommonForm
 from dcim.choices import DeviceStatusChoices, DeviceAirflowChoices, DeviceStatusChoices, InterfaceSpeedChoices
-from dcim.models import DeviceRole, DeviceType, Site, Location, Region, Rack, Device, Interface, Module
+from dcim.models import DeviceRole, DeviceType, Site, Location, Region, Rack, Device, Interface, Module, MACAddress
 
 from utilities.forms import form_from_model, add_blank_choice
 from utilities.forms.fields import CommentField, DynamicModelChoiceField, DynamicModelMultipleChoiceField
@@ -346,6 +346,13 @@ class SlurpitDeviceInterfaceForm(InterfaceCommonForm, ModularDeviceComponentForm
             'available_on_virtualmachine': '$virtual_machine',
             'qinq_role': VLANQinQRoleChoices.ROLE_SERVICE,
         }
+    )
+    primary_mac_address = DynamicModelChoiceField(
+        queryset=MACAddress.objects.all(),
+        label=_('Primary MAC address'),
+        required=False,
+        quick_add=True,
+        quick_add_params={'interface': '$pk'}
     )
 
     ignore_module = forms.BooleanField(
