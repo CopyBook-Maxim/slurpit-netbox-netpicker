@@ -76,7 +76,7 @@ class SlurpitVLANSerializer(NetBoxModelSerializer):
     class Meta:
         model = SlurpitVLAN
         fields = [
-            'id', 'group', 'vid', 'name', 'tenant', 'status', 'role',
+            'id', 'site', 'group', 'vid', 'name', 'tenant', 'status', 'role',
             'description', 'comments', 'tags', 'custom_fields', 'created', 'last_updated',
         ]
 
