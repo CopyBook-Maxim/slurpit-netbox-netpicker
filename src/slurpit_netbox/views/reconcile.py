@@ -123,7 +123,7 @@ class ReconcileView(generic.ObjectListView):
                 diff_removed = None
                 action = 'Updated'
                 
-                prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'site', 'role', 'description']
+                prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope', 'scope_type', '_site', '_site_group', '_location', '_region']
 
                 incomming_queryset = SlurpitPrefix.objects.filter(pk=pk)
                 incomming_change = incomming_queryset.values(*prefix_fields).first()
@@ -329,7 +329,7 @@ class ReconcileView(generic.ObjectListView):
                 diff_removed = None
                 action = 'Updated'
                 
-                prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'site', 'role', 'description']
+                prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope', 'scope_type', '_site', '_site_group', '_location', '_region']
 
                 initial_obj = SlurpitPrefix.objects.filter(prefix=None).values(
                     'ignore_status', 'ignore_vrf', 'ignore_role', 'ignore_site', 'ignore_vlan', 'ignore_tenant', 'ignore_description'
@@ -344,7 +344,7 @@ class ReconcileView(generic.ObjectListView):
                         if initial_prefix_values[key]:
                             prefix_update_ignore_values.append(key)
 
-                updated_fields = ['status', 'tenant', 'description', 'role', 'vlan', 'site']
+                updated_fields = ['status', 'tenant', 'description', 'role', 'vlan', 'scope', 'scope_type', '_site', '_site_group', '_location', '_region']
                 fields_to_remove = []
                 
                 for field in updated_fields:
@@ -608,9 +608,9 @@ class ReconcileView(generic.ObjectListView):
                     #     offset += BATCH_SIZE
                 elif tab == 'prefix':
                     if _all:
-                        reconcile_items =SlurpitPrefix.objects.exclude(prefix=None)
+                        reconcile_items = SlurpitPrefix.objects.exclude(prefix=None)
                     else:
-                        reconcile_items =SlurpitPrefix.objects.filter(pk__in=pk_list)
+                        reconcile_items = SlurpitPrefix.objects.filter(pk__in=pk_list)
                     
                     initial_obj = SlurpitPrefix.objects.filter(prefix=None).values(
                         'ignore_status', 'ignore_vrf', 'ignore_role', 'ignore_site', 'ignore_vlan', 'ignore_tenant', 'ignore_description'
@@ -625,7 +625,7 @@ class ReconcileView(generic.ObjectListView):
                             if initial_prefix_values[key]:
                                 prefix_update_ignore_values.append(key)
 
-                    updated_fields = ['status', 'tenant', 'description', 'role', 'vlan', 'site']
+                    updated_fields = ['status', 'tenant', 'description', 'role', 'vlan', 'scope', 'scope_type', '_site', '_site_group', '_location', '_region']
                     fields_to_remove = []
                     
                     for field in updated_fields:
@@ -668,7 +668,7 @@ class ReconcileView(generic.ObjectListView):
                                     vlan = item.vlan,
                                     description = item.description,
                                     tenant = item.tenant,
-                                    site = item.site
+                                    #site = item.site
                             ))
                             batch_insert_ids.append(item.pk)
                         
@@ -895,7 +895,7 @@ class ReconcileDetailView(generic.ObjectView):
             diff_removed = None
             action = 'Updated'
             
-            prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'site', 'role', 'description']
+            prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description']
 
             incomming_queryset = SlurpitPrefix.objects.filter(pk=pk)
             incomming_change = incomming_queryset.values(*prefix_fields).first()
