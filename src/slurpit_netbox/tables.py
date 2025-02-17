@@ -487,6 +487,15 @@ class SlurpitPrefixTable(TenancyColumnsMixin, NetBoxTable):
         template_code=VRF_LINK,
         verbose_name=_('VRF')
     )
+    scope_type = columns.ContentTypeColumn(
+        verbose_name=_('Scope Type'),
+    )
+    scope = tables.Column(
+        verbose_name=_('Scope'),
+        linkify=True,
+        orderable=False
+    )
+    
     site = tables.Column(
         verbose_name=_('Site'),
         linkify=True
@@ -518,10 +527,10 @@ class SlurpitPrefixTable(TenancyColumnsMixin, NetBoxTable):
         model = SlurpitPrefix
         fields = (
             'pk', 'id', 'prefix','status', 'vrf',  'tenant',
-            'site', 'vlan', 'role', 'description','commit_action'
+            'scope', 'scope_type', 'vlan', 'role', 'description','commit_action'
         )
         default_columns = (
-            'pk', 'prefix', 'status','vrf', 'commit_action', 'tenant', 'site', 'vlan', 'role', 'description', 'edit',
+            'pk', 'prefix', 'status','vrf', 'commit_action', 'tenant', 'vlan', 'role', 'description', 'edit',
         )
         row_attrs = {
             'class': lambda record: 'success' if not record.pk else '',
