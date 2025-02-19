@@ -677,6 +677,8 @@ class SlurpitPrefixView(SlurpitViewSet):
         vlan = None
         role = None
         site = None
+        scope = None
+        scope_type = None
         site_group = None
         location = None
         region = None
@@ -703,10 +705,10 @@ class SlurpitPrefixView(SlurpitViewSet):
                     vlan = VLAN.objects.get(pk=initial_prefix_values['vlan'])
                 if initial_prefix_values['role'] is not None:
                     role = Role.objects.get(pk=initial_prefix_values['role'])
-                if initial_prefix_values['scope'] is not None:
-                    site = Site.objects.get(pk=initial_prefix_values['scope'])
-                if initial_prefix_values['scope_type'] is not None:
-                    site = Site.objects.get(pk=initial_prefix_values['scope_type'])
+                # if initial_prefix_values['scope'] is not None:
+                #     scope = Scope.objects.get(pk=initial_prefix_values['scope'])
+                # if initial_prefix_values['scope_type'] is not None:
+                #     scope_type = ScopeType.objects.get(pk=initial_prefix_values['scope_type'])
                 if initial_prefix_values['_site'] is not None:
                     site = Site.objects.get(pk=initial_prefix_values['_site'])
                 if initial_prefix_values['_site_group'] is not None:
