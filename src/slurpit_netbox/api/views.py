@@ -687,7 +687,7 @@ class SlurpitPrefixView(SlurpitViewSet):
             # Get initial values for prefix
             enable_reconcile = True
             initial_obj = SlurpitPrefix.objects.filter(prefix=None).values(
-                'status', 'vrf', 'role', 'vlan', 'tenant', 'enable_reconcile', 'description', 'ignore_status', 'ignore_vrf', 'ignore_role', 'ignore_site', 'ignore_vlan', 'ignore_tenant', 'ignore_description', 'scope', 'scope_type', '_site', '_site_group', '_region', '_location'
+                'status', 'vrf', 'role', 'vlan', 'tenant', 'enable_reconcile', 'description', 'ignore_status', 'ignore_vrf', 'ignore_role', 'ignore_site', 'ignore_vlan', 'ignore_tenant', 'ignore_description', 'scope_id', 'scope_type_id', '_site', '_site_group', '_region', '_location'
             ).first()
             initial_prefix_values = {}
             prefix_update_ignore_values = []
