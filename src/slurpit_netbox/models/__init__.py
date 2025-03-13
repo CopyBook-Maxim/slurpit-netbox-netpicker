@@ -21,8 +21,7 @@ __all__ = [
 
 def ensure_slurpit_tags(*items):
     if (tags := getattr(ensure_slurpit_tags, 'cache', None)) is None:
-        name = 'slurpit'
-        tag, _ = Tag.objects.get_or_create(name=name, defaults={'slug':name, 'description':'Slurp\'it onboarded', 'color': 'F09640'})
+        tag, _ = Tag.objects.get_or_create(name='slurpit', slug='slurpit', defaults={'description':'Slurp\'it onboarded', 'color': 'F09640'})
 
         dcim_applicable_to = 'device', 'devicerole', 'devicetype', 'manufacturer', 'site'
         ipam_applicable_to = 'iprange', 'prefix'
