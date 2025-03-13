@@ -131,7 +131,7 @@ class DataMappingView(View):
             setting = None
 
         if tab == "devices":
-            slurpit_tag = Tag.objects.get(name="slurpit")
+            slurpit_tag = Tag.objects.get(slug="slurpit")
             ip_ranges = IPRange.objects.filter(tags__in=[slurpit_tag])
         
         for mapping in mappings:
