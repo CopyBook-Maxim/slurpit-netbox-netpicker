@@ -123,7 +123,7 @@ class ReconcileView(generic.ObjectListView):
                 diff_removed = None
                 action = 'Updated'
                 
-                prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope', 'scope_type', '_site', '_site_group', '_location', '_region']
+                prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region']
 
                 incomming_queryset = SlurpitPrefix.objects.filter(pk=pk)
                 incomming_change = incomming_queryset.values(*prefix_fields).first()
@@ -329,7 +329,7 @@ class ReconcileView(generic.ObjectListView):
                 diff_removed = None
                 action = 'Updated'
                 
-                prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope', 'scope_type', '_site', '_site_group', '_location', '_region']
+                prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region']
 
                 initial_obj = SlurpitPrefix.objects.filter(prefix=None).values(
                     'ignore_status', 'ignore_vrf', 'ignore_role', 'ignore_site', 'ignore_vlan', 'ignore_tenant', 'ignore_description'
@@ -344,7 +344,7 @@ class ReconcileView(generic.ObjectListView):
                         if initial_prefix_values[key]:
                             prefix_update_ignore_values.append(key)
 
-                updated_fields = ['status', 'tenant', 'description', 'role', 'vlan', 'scope', 'scope_type', '_site', '_site_group', '_location', '_region']
+                updated_fields = ['status', 'tenant', 'description', 'role', 'vlan', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region']
                 fields_to_remove = []
                 
                 for field in updated_fields:
@@ -625,7 +625,7 @@ class ReconcileView(generic.ObjectListView):
                             if initial_prefix_values[key]:
                                 prefix_update_ignore_values.append(key)
 
-                    updated_fields = ['status', 'tenant', 'description', 'role', 'vlan', 'scope', 'scope_type', '_site', '_site_group', '_location', '_region']
+                    updated_fields = ['status', 'tenant', 'description', 'role', 'vlan', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region']
                     fields_to_remove = []
                     
                     for field in updated_fields:
@@ -895,7 +895,7 @@ class ReconcileDetailView(generic.ObjectView):
             diff_removed = None
             action = 'Updated'
             
-            prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description']
+            prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region']
 
             incomming_queryset = SlurpitPrefix.objects.filter(pk=pk)
             incomming_change = incomming_queryset.values(*prefix_fields).first()
