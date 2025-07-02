@@ -284,7 +284,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                             prefix__net_contains=obj.ipv4
                         ).first()
                         if prefix:
-                            prefix = prefix
+                            
                             address = f'{obj.ipv4}/{prefix.prefix.prefixlen}'
                         else:
                             address = f'{obj.ipv4}/32'
@@ -330,7 +330,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         prefix__net_contains=ipv4
                     ).first()
                     if prefix:
-                        prefix = prefix
+                        
                         address = f'{ipv4}/{prefix.prefix.prefixlen}'
                     else:
                         address = f'{ipv4}/32'
@@ -346,7 +346,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         prefix__net_contains=obj.ipv4
                     ).first()
                     if prefix:
-                        prefix = prefix
+                        
                         address = f'{obj.ipv4}/{prefix.prefix.prefixlen}'
                     else:
                         address = f'{obj.ipv4}/32'
@@ -395,7 +395,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                             prefix__net_contains=obj.ipv4
                         ).first()
                         if prefix:
-                            prefix = prefix
+                            
                             address = f'{obj.ipv4}/{prefix.prefix.prefixlen}'
                         else:
                             address = f'{obj.ipv4}/32'
@@ -453,7 +453,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                             prefix__net_contains=obj.ipv4
                         ).first()
                         if prefix:
-                            prefix = prefix
+                            
                             address = f'{obj.ipv4}/{prefix.prefix.prefixlen}'
                         else:
                             address = f'{obj.ipv4}/32'

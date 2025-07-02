@@ -57,7 +57,7 @@ class ConditionalLink(Column):
                     prefix__net_contains=record.ipv4
                 ).first()
                 if prefix:
-                    prefix = prefix
+                    
                     address = f'{record.ipv4}/{prefix.prefix.prefixlen}'
                 else:
                     address = f'{record.ipv4}/32'
@@ -84,7 +84,6 @@ class ConflictedColumn(Column):
             prefix__net_contains=record.ipv4
         ).first()
         if prefix:
-            prefix = prefix
             address = f'{record.ipv4}/{prefix.prefix.prefixlen}'
         else:
             address = f'{record.ipv4}/32'

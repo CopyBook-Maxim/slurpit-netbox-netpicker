@@ -245,7 +245,7 @@ def handle_changed():
                         prefix__net_contains=device.ipv4
                     ).first()
                     if prefix:
-                        prefix = prefix
+                        
                         address = f'{device.ipv4}/{prefix.prefix.prefixlen}'
                     else:
                         address = f'{device.ipv4}/32'
@@ -351,7 +351,6 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
             prefix__net_contains=staged.ipv4
         ).first()
         if prefix:
-            prefix = prefix
             address = f'{staged.ipv4}/{prefix.prefix.prefixlen}'
         else:
             address = f'{staged.ipv4}/32'
