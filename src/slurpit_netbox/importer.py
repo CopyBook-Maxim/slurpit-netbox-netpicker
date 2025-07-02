@@ -16,7 +16,7 @@ from .references import base_name, plugin_type, custom_field_data_name
 from .references.generic import get_default_objects, status_inventory, status_offline, get_create_dcim_objects, set_device_custom_fields, status_active
 from .references.imports import *
 from dcim.models import Interface, Site
-from ipam.models import IPAddress
+from ipam.models import IPAddress, Prefix
 
 BATCH_SIZE = 512
 columns = ('slurpit_id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', 'createddate', 'changeddate', 'site')
@@ -241,7 +241,14 @@ def handle_changed():
                 })   
                 
                 if device.ipv4:
-                    address = f'{device.ipv4}/32'
+                    prefix = Prefix.objects.filter(
+                        prefix__net_contains=device.ipv4
+                    ).first()
+                    if prefix:
+                        prefix = prefix
+                        address = f'{device.ipv4}/{prefix.prefix.prefixlen}'
+                    else:
+                        address = f'{device.ipv4}/32'
                     #### Remove Primary IPv4 on other device
                     other_device = Device.objects.filter(primary_ip4__address=address).first()
                     if other_device:
@@ -340,7 +347,14 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
 
     #Interface for new device.
     if staged.ipv4:
-        address = f'{staged.ipv4}/32'
+        prefix = Prefix.objects.filter(
+            prefix__net_contains=staged.ipv4
+        ).first()
+        if prefix:
+            prefix = prefix
+            address = f'{staged.ipv4}/{prefix.prefix.prefixlen}'
+        else:
+            address = f'{staged.ipv4}/32'
         #### Remove Primary IPv4 on other device
         other_device = Device.objects.filter(primary_ip4__address=address).first()
         if other_device:
@@ -357,6 +371,7 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
         ipaddress.assigned_object = interface
         ipaddress.save()
         device.primary_ip4 = ipaddress
+
         device.save()
     
     return device
