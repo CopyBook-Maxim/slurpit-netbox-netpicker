@@ -497,6 +497,19 @@ class SlurpitIPAMView(SlurpitViewSet):
 
                 if unique_ipaddress in duplicates:
                     continue
+
+                if '/' not in unique_ipaddress:
+                    prefix = Prefix.objects.filter(
+                        prefix__net_contains=unique_ipaddress
+                    ).first()
+
+                    if prefix:
+                        unique_ipaddress = f'{unique_ipaddress}/{prefix.prefix.prefixlen}'
+                    else:
+                        unique_ipaddress = f'{unique_ipaddress}/32'
+
+                record['address'] = unique_ipaddress
+                
                 duplicates.append(unique_ipaddress)
 
                 new_data = {**initial_ipaddress_values, **record}
@@ -543,7 +556,7 @@ class SlurpitIPAMView(SlurpitViewSet):
                                 field_name = f'ignore_{field}'
                                 if field_name in ipaddress_update_ignore_values:
                                     continue
-                                old_ipaddress[field] = getattr(obj, field)
+                                old_ipaddress[field] =   getattr(obj, field)
                                 new_ipaddress[field] = item[field]
 
                                 if field in not_null_fields and (new_ipaddress[field] is None or new_ipaddress[field] == ""):

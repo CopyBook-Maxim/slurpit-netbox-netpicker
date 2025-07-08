@@ -49,11 +49,19 @@ class ConditionalToggle(ToggleColumn):
 class ConditionalLink(Column):
     def render(self, value, bound_column, record):
         if record.mapped_device_id is None:
-            
+
             original_value = ""
             original_device = Device.objects.filter(name__iexact=record.hostname).first()
             if original_device is None and record.ipv4:
-                original_device = Device.objects.filter(primary_ip4__address=f'{record.ipv4}/32').first()
+                prefix = Prefix.objects.filter(
+                    prefix__net_contains=record.ipv4
+                ).first()
+                if prefix:
+                    
+                    address = f'{record.ipv4}/{prefix.prefix.prefixlen}'
+                else:
+                    address = f'{record.ipv4}/32'
+                original_device = Device.objects.filter(primary_ip4__address=address).first()
 
             if original_device:
                 original_value = original_device.name
@@ -72,9 +80,17 @@ class ConditionalLink(Column):
 
 class ConflictedColumn(Column):
     def render(self, value, bound_column, record):
+        prefix = Prefix.objects.filter(
+            prefix__net_contains=record.ipv4
+        ).first()
+        if prefix:
+            address = f'{record.ipv4}/{prefix.prefix.prefixlen}'
+        else:
+            address = f'{record.ipv4}/32'
+            
         device = Device.objects.filter(name__iexact=record.hostname).first()
         if device is None:
-            device = Device.objects.filter(primary_ip4__address=f'{record.ipv4}/32').first()
+            device = Device.objects.filter(primary_ip4__address=address).first()
 
         original_value = ""
         column_name = bound_column.verbose_name
@@ -383,6 +399,7 @@ class SlurpitInterfaceTable(BaseInterfaceTable):
             'args': [Accessor('device_id')],
         }
     )
+    
     speed_formatted = columns.TemplateColumn(
         template_code='{% load helpers %}{{ value|humanize_speed }}',
         accessor=Accessor('speed'),
