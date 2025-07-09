@@ -691,6 +691,7 @@ class SlurpitPrefixView(SlurpitViewSet):
         role = None
         site = None
         scope = None
+        scope_id = None
         scope_type = None
         site_group = None
         location = None
@@ -700,7 +701,7 @@ class SlurpitPrefixView(SlurpitViewSet):
             # Get initial values for prefix
             enable_reconcile = True
             initial_obj = SlurpitPrefix.objects.filter(prefix=None).values(
-                'status', 'vrf', 'role', 'vlan', 'tenant', 'enable_reconcile', 'description', 'ignore_status', 'ignore_vrf', 'ignore_role', 'ignore_site', 'ignore_vlan', 'ignore_tenant', 'ignore_description', 'scope_id', 'scope_type_id', '_site', '_site_group', '_region', '_location'
+                'status', 'vrf', 'role', 'vlan', 'tenant', 'enable_reconcile', 'description', 'ignore_status', 'ignore_vrf', 'ignore_role', 'ignore_site', 'ignore_vlan', 'ignore_tenant', 'ignore_description', 'scope_id', 'scope_type', '_site', '_site_group', '_region', '_location'
             ).first()
             initial_prefix_values = {}
             prefix_update_ignore_values = []
@@ -735,7 +736,7 @@ class SlurpitPrefixView(SlurpitViewSet):
                 initial_prefix_values['tenant'] = tenant
                 initial_prefix_values['vlan'] = vlan
                 initial_prefix_values['role'] = role
-                initial_prefix_values['scope'] = scope
+                initial_prefix_values['scope_id'] = scope_id
                 initial_prefix_values['scope_type'] = scope_type
                 initial_prefix_values['_site'] = site
                 initial_prefix_values['_site_group'] = site_group
@@ -750,7 +751,7 @@ class SlurpitPrefixView(SlurpitViewSet):
                 initial_prefix_values = {
                     'status': 'active',
                     'vrf': None,
-                    'scope': None,
+                    'scope_id': None,
                     'scope_type': None,
                     '_site': None,
                     '_site_group': None,
@@ -802,7 +803,7 @@ class SlurpitPrefixView(SlurpitViewSet):
                         slurpit_prefix_item = slurpit_prefix_item.first()
 
                         allowed_fields_with_none = {'status'}
-                        allowed_fields = {'role', 'tenant', 'vlan', 'vrf', 'description', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region'}
+                        allowed_fields = {'role', 'tenant', 'vlan', 'vrf', 'description', 'scope_id', 'scope_type', '_site', '_site_group', '_location', '_region'}
                         update = False
                         for field, value in item.items():
                             current = getattr(slurpit_prefix_item, field, None)
@@ -818,7 +819,7 @@ class SlurpitPrefixView(SlurpitViewSet):
                     else:
                         obj = Prefix.objects.filter(prefix=item['prefix'], vrf=item['vrf'])
                         
-                        fields = {'status', 'vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region'}
+                        fields = {'status', 'vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type', '_site', '_site_group', '_location', '_region'}
                         not_null_fields = {'vlan', 'tenant', 'role', 'description'}
                         
                         new_prefix = {}
@@ -861,7 +862,7 @@ class SlurpitPrefixView(SlurpitViewSet):
                 offset = 0
                 while offset < count:
                     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                    SlurpitPrefix.objects.bulk_update(batch_qs, fields={'description', 'vrf', 'tenant', 'status', 'vlan', 'role', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region'})
+                    SlurpitPrefix.objects.bulk_update(batch_qs, fields={'description', 'vrf', 'tenant', 'status', 'vlan', 'role', 'scope_id', 'scope_type', '_site', '_site_group', '_location', '_region'})
                     offset += BATCH_SIZE
 
                 duplicates = SlurpitPrefix.objects.values('prefix', 'vrf').annotate(count=Count('id')).filter(count__gt=1)
@@ -917,7 +918,7 @@ class SlurpitPrefixView(SlurpitViewSet):
                     
                     # Update
                     allowed_fields_with_none = {'status'}
-                    allowed_fields = {'role', 'tenant', 'vlan', 'description', 'vrf', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region'}
+                    allowed_fields = {'role', 'tenant', 'vlan', 'description', 'vrf', 'scope_id', 'scope_type', '_site', '_site_group', '_location', '_region'}
 
                     for field, value in update_item.items():
                         ignore_field = f'ignore_{field}'
@@ -942,7 +943,7 @@ class SlurpitPrefixView(SlurpitViewSet):
 
                     Prefix.objects.bulk_update(to_import, 
                         fields={
-                            'description', 'vrf', 'tenant', 'status', 'vlan', 'role', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region'
+                            'description', 'vrf', 'tenant', 'status', 'vlan', 'role', 'scope_id', 'scope_type', '_site', '_site_group', '_location', '_region'
                         }
                     )
                     offset += BATCH_SIZE
