@@ -280,11 +280,8 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     # Interface
                     if obj.ipv4:
                         
-                        prefix = Prefix.objects.filter(
-                            prefix__net_contains=obj.ipv4
-                        ).first()
-                        if prefix:
-                            
+                        prefix = Prefix.objects.filter(prefix__net_contains=obj.ipv4).order_by('-prefix').first()
+                        if prefix:                            
                             address = f'{obj.ipv4}/{prefix.prefix.prefixlen}'
                         else:
                             address = f'{obj.ipv4}/32'
@@ -326,11 +323,8 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
 
                 matching_ipv4s = []
                 for ipv4 in self.queryset.values_list('ipv4', flat=True).distinct():
-                    prefix = Prefix.objects.filter(
-                        prefix__net_contains=ipv4
-                    ).first()
-                    if prefix:
-                        
+                    prefix = Prefix.objects.filter(prefix__net_contains=ipv4).order_by('-prefix').first()
+                    if prefix:                        
                         address = f'{ipv4}/{prefix.prefix.prefixlen}'
                     else:
                         address = f'{ipv4}/32'
@@ -342,9 +336,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
             elif conflic == 'update_slurpit':
                 for obj in self.queryset:
 
-                    prefix = Prefix.objects.filter(
-                        prefix__net_contains=obj.ipv4
-                    ).first()
+                    prefix = Prefix.objects.filter(prefix__net_contains=obj.ipv4).order_by('-prefix').first()
                     if prefix:
                         
                         address = f'{obj.ipv4}/{prefix.prefix.prefixlen}'
@@ -391,11 +383,8 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     device = None
                     
                     if obj.ipv4:
-                        prefix = Prefix.objects.filter(
-                            prefix__net_contains=obj.ipv4
-                        ).first()
-                        if prefix:
-                            
+                        prefix = Prefix.objects.filter(prefix__net_contains=obj.ipv4).order_by('-prefix').first()
+                        if prefix:                            
                             address = f'{obj.ipv4}/{prefix.prefix.prefixlen}'
                         else:
                             address = f'{obj.ipv4}/32'
@@ -449,11 +438,8 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
 
                     # Interface
                     if obj.ipv4:
-                        prefix = Prefix.objects.filter(
-                            prefix__net_contains=obj.ipv4
-                        ).first()
-                        if prefix:
-                            
+                        prefix = Prefix.objects.filter(prefix__net_contains=obj.ipv4).order_by('-prefix').first()
+                        if prefix:                            
                             address = f'{obj.ipv4}/{prefix.prefix.prefixlen}'
                         else:
                             address = f'{obj.ipv4}/32'

@@ -241,9 +241,7 @@ def handle_changed():
                 })   
                 
                 if device.ipv4:
-                    prefix = Prefix.objects.filter(
-                        prefix__net_contains=device.ipv4
-                    ).first()
+                    prefix = Prefix.objects.filter(prefix__net_contains=device.ipv4).order_by('-prefix').first()
                     if prefix:
                         
                         address = f'{device.ipv4}/{prefix.prefix.prefixlen}'
@@ -347,9 +345,7 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
 
     #Interface for new device.
     if staged.ipv4:
-        prefix = Prefix.objects.filter(
-            prefix__net_contains=staged.ipv4
-        ).first()
+        prefix = Prefix.objects.filter(prefix__net_contains=staged.ipv4).order_by('-prefix').first()
         if prefix:
             address = f'{staged.ipv4}/{prefix.prefix.prefixlen}'
         else:

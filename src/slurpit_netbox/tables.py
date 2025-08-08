@@ -53,11 +53,8 @@ class ConditionalLink(Column):
             original_value = ""
             original_device = Device.objects.filter(name__iexact=record.hostname).first()
             if original_device is None and record.ipv4:
-                prefix = Prefix.objects.filter(
-                    prefix__net_contains=record.ipv4
-                ).first()
-                if prefix:
-                    
+                prefix = Prefix.objects.filter(prefix__net_contains=record.ipv4).order_by('-prefix').first()
+                if prefix:                    
                     address = f'{record.ipv4}/{prefix.prefix.prefixlen}'
                 else:
                     address = f'{record.ipv4}/32'
@@ -80,9 +77,7 @@ class ConditionalLink(Column):
 
 class ConflictedColumn(Column):
     def render(self, value, bound_column, record):
-        prefix = Prefix.objects.filter(
-            prefix__net_contains=record.ipv4
-        ).first()
+        prefix = Prefix.objects.filter( prefix__net_contains=record.ipv4).order_by('-prefix').first()
         if prefix:
             address = f'{record.ipv4}/{prefix.prefix.prefixlen}'
         else:

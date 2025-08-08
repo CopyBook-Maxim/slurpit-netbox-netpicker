@@ -499,9 +499,7 @@ class SlurpitIPAMView(SlurpitViewSet):
                     continue
 
                 if '/' not in unique_ipaddress:
-                    prefix = Prefix.objects.filter(
-                        prefix__net_contains=unique_ipaddress
-                    ).first()
+                    prefix = Prefix.objects.filter(prefix__net_contains=unique_ipaddress).order_by('-prefix').first()
 
                     if prefix:
                         unique_ipaddress = f'{unique_ipaddress}/{prefix.prefix.prefixlen}'
