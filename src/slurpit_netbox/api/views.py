@@ -842,7 +842,7 @@ class SlurpitPrefixView(SlurpitViewSet):
                                 continue
                         else:
                             for field in fields:
-                                new_prefix[field] = item[field]
+                                new_prefix[field] = item.get(field, None)
 
                         batch_insert_qs.append(SlurpitPrefix(
                             prefix = item['prefix'],
