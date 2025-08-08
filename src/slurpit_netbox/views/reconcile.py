@@ -123,7 +123,7 @@ class ReconcileView(generic.ObjectListView):
                 diff_removed = None
                 action = 'Updated'
                 
-                prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region']
+                prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type', '_site', '_site_group', '_location', '_region']
 
                 incomming_queryset = SlurpitPrefix.objects.filter(pk=pk)
                 incomming_change = incomming_queryset.values(*prefix_fields).first()
@@ -895,7 +895,7 @@ class ReconcileDetailView(generic.ObjectView):
             diff_removed = None
             action = 'Updated'
             
-            prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region']
+            prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type_id']
 
             incomming_queryset = SlurpitPrefix.objects.filter(pk=pk)
             incomming_change = incomming_queryset.values(*prefix_fields).first()
