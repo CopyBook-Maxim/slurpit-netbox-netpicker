@@ -677,12 +677,10 @@ class ReconcileView(generic.ObjectListView):
                     while offset < count:
                         batch_qs = batch_insert_qs[offset:offset + BATCH_SIZE]
                         batch_ids = batch_insert_ids[offset:offset + BATCH_SIZE]
-                        to_import = []        
-                        for prefix_item in batch_qs:
-                            to_import.append(prefix_item)
 
                         with transaction.atomic():
-                            Prefix.objects.bulk_create(to_import)
+                            for prefix_item in batch_qs:
+                                prefix_item.save() # needs save to tigger the @receiver(post_save) signal
                             SlurpitPrefix.objects.filter(pk__in=batch_ids).delete()
                         offset += BATCH_SIZE
 
