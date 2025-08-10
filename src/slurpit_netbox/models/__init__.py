@@ -118,6 +118,39 @@ def create_custom_fields():
                 })
     cf.object_types.set({device})
 
+    cf, _ = CustomField.objects.get_or_create(
+                name='slurpit_serial',
+                defaults={            
+                    "type":CustomFieldTypeChoices.TYPE_TEXT,
+                    "description":"",
+                    "is_cloneable":True,
+                    "label":'Serialname',
+                    "group_name":"Slurp'it",
+                })
+    cf.object_types.set({device})
+
+    cf, _ = CustomField.objects.get_or_create(
+                name='slurpit_os_version',
+                defaults={            
+                    "type":CustomFieldTypeChoices.TYPE_TEXT,
+                    "description":"",
+                    "is_cloneable":True,
+                    "label":'Os Version',
+                    "group_name":"Slurp'it",
+                })
+    cf.object_types.set({device})
+
+    cf, _ = CustomField.objects.get_or_create(
+                name='slurpit_snmp_uptime',
+                defaults={            
+                    "type":CustomFieldTypeChoices.TYPE_TEXT,
+                    "description":"",
+                    "is_cloneable":True,
+                    "label":'Snmp Uptime',
+                    "group_name":"Slurp'it",
+                })
+    cf.object_types.set({device})
+
 def create_default_data_mapping():
     SlurpitMapping.objects.all().delete()
     

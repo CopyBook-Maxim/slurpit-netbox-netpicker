@@ -21,8 +21,11 @@ class SlurpitStagedDevice(NetBoxModel):
     ipv4 = models.CharField(max_length=23, null=True)
     device_os = models.CharField(max_length=128)
     device_type = models.CharField(max_length=255)
-    brand = models.CharField(max_length=255)
     site = models.CharField(max_length=255, null=True)
+    brand = models.CharField(max_length=255)
+    serial = models.CharField(max_length=255, null=True)
+    os_version = models.CharField(max_length=255, null=True)
+    snmp_uptime = models.CharField(max_length=255, null=True)
     createddate = models.DateTimeField()
     changeddate = models.DateTimeField()
     
@@ -40,6 +43,9 @@ class SlurpitImportedDevice(NetBoxModel):
     device_type = models.CharField(max_length=255)
     site = models.CharField(max_length=255, null=True)
     brand = models.CharField(max_length=255)
+    serial = models.CharField(max_length=255, null=True)
+    os_version = models.CharField(max_length=255, null=True)
+    snmp_uptime = models.CharField(max_length=255, null=True)
     createddate = models.DateTimeField()
     changeddate = models.DateTimeField()
     mapped_devicetype = models.ForeignKey(to=DeviceType, null=True, on_delete=models.SET_NULL)
@@ -64,6 +70,9 @@ class SlurpitImportedDevice(NetBoxModel):
         self.fqdn = device.fqdn
         self.device_os = device.device_os
         self.device_type = device.device_type
+        self.serial = device.serial
+        self.os_version = device.os_version
+        self.snmp_uptime = device.snmp_uptime
         self.brand = device.brand
         self.site = device.site
         self.createddate = device.createddate

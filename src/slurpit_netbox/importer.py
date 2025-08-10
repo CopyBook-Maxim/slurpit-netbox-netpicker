@@ -19,7 +19,7 @@ from dcim.models import Interface, Site
 from ipam.models import IPAddress, Prefix
 
 BATCH_SIZE = 512
-columns = ('slurpit_id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', 'createddate', 'changeddate', 'site')
+columns = ('slurpit_id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', "serial", "os_version", "snmp_uptime", 'createddate', 'changeddate', 'site')
 
 import re
 
@@ -299,7 +299,10 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
         'slurpit_manufacturer': staged.brand,
         'slurpit_devicetype': staged.device_type,
         'slurpit_ipv4': staged.ipv4,
-        'slurpit_site': staged.site
+        'slurpit_site': staged.site,
+        'slurpit_serial': staged.serial,
+        'slurpit_os_verion': staged.os_version,
+        'slurpit_snmp_uptime': staged.snmp_uptime
     })    
 
     try:

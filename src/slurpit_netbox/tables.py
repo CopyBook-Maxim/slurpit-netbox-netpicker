@@ -39,7 +39,10 @@ class ConditionalToggle(ToggleColumn):
             record.mapped_device.custom_field_data['slurpit_fqdn'] != record.fqdn or
             record.mapped_device.custom_field_data['slurpit_platform'] != record.device_os or 
             record.mapped_device.custom_field_data['slurpit_manufacturer'] != record.brand or
-            record.mapped_device.custom_field_data['slurpit_site'] != record.site
+            record.mapped_device.custom_field_data['slurpit_site'] != record.site or
+            record.mapped_device.custom_field_data['slurpit_serial'] != record.serial or
+            record.mapped_device.custom_field_data['slurpit_os_version'] != record.os_version or
+            record.mapped_device.custom_field_data['slurpit_snmp_uptime'] != record.snmp_uptime
         ):
             return super().render(value, bound_column, record)
         return super().render(value, bound_column, record)
@@ -149,10 +152,22 @@ class SlurpitImportedDeviceTable(NetBoxTable):
         verbose_name = _('Last seen')
     )
 
+    serial = tables.Column(
+        verbose_name = _('Serialname')
+    )
+    
+    os_version = tables.Column(
+        verbose_name = _('Os Version')
+    )
+    
+    snmp_uptime = tables.Column(
+        verbose_name = _('Snmp Uptime')
+    )
+
     class Meta(NetBoxTable.Meta):
         model = SlurpitImportedDevice
-        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'ipv4', 'device_os', 'site', 'device_type', 'last_updated')
-        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'site', 'last_updated')
+        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'ipv4', 'device_os', 'site', 'device_type', "serial", "os_version", "snmp_uptime", 'last_updated')
+        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'site', "serial", "os_version", "snmp_uptime", 'last_updated')
 
 class PlatformTypeColumn(Column):
     def render(self, value, bound_column, record):
@@ -191,10 +206,22 @@ class SlurpitOnboardedDeviceTable(NetBoxTable):
         verbose_name = _('Last seen')
     )
 
+    serial = tables.Column(
+        verbose_name = _('Serialname')
+    )
+    
+    os_version = tables.Column(
+        verbose_name = _('Os Version')
+    )
+    
+    snmp_uptime = tables.Column(
+        verbose_name = _('Snmp Uptime')
+    )
+
     class Meta(NetBoxTable.Meta):
         model = SlurpitImportedDevice
-        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'ipv4', 'device_os', 'device_type', 'site', 'last_updated')
-        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'site','last_updated')
+        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'ipv4', 'device_os', 'device_type', 'site', "serial", "os_version", "snmp_uptime", 'last_updated')
+        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'site', "serial", "os_version", "snmp_uptime",'last_updated')
 
 class ConflictDeviceTable(NetBoxTable):
     actions = columns.ActionsColumn(actions=tuple())
@@ -224,8 +251,8 @@ class ConflictDeviceTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = SlurpitImportedDevice
-        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'device_os', 'device_type', 'ipv4', 'last_updated')
-        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'last_updated')
+        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'device_os', 'device_type', 'ipv4', "serial", "os_version", "snmp_uptime", 'last_updated')
+        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', "serial", "os_version", "snmp_uptime", 'last_updated')
 
 
 class MigratedDeviceTable(NetBoxTable):
@@ -250,6 +277,18 @@ class MigratedDeviceTable(NetBoxTable):
         verbose_name = _('Last seen')
     )
 
+    serial = tables.Column(
+        verbose_name = _('Serialname')
+    )
+    
+    os_version = tables.Column(
+        verbose_name = _('Os Version')
+    )
+    
+    snmp_uptime = tables.Column(
+        verbose_name = _('Snmp Uptime')
+    )
+
     # slurpit_devicetype = tables.Column(
     #     accessor='slurpit_device_type', 
     #     verbose_name='Original Device Type'
@@ -257,8 +296,8 @@ class MigratedDeviceTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = SlurpitImportedDevice
-        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'device_os', 'device_type', 'site', 'last_updated')
-        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'site', 'last_updated')
+        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'device_os', 'device_type', 'site', "serial", "os_version", "snmp_uptime", 'last_updated')
+        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'site', "serial", "os_version", "snmp_uptime", 'last_updated')
 
     def render_device_os(self, value, record):
         original_val = record.mapped_device.custom_field_data["slurpit_platform"]

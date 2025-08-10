@@ -227,7 +227,10 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         'slurpit_manufacturer': obj.brand,
                         'slurpit_devicetype': obj.device_type,
                         'slurpit_ipv4': obj.ipv4,
-                        'slurpit_site': obj.site
+                        'slurpit_site': obj.site,
+                        'slurpit_serial': obj.serial,
+                        'slurpit_os_version': obj.os_version,
+                        'slurpit_snmp_uptime': obj.snmp_uptime
                     })    
 
                     # Update Site           
@@ -254,7 +257,10 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         'slurpit_manufacturer': obj.brand,
                         'slurpit_devicetype': obj.device_type,
                         'slurpit_ipv4': obj.ipv4,
-                        'slurpit_site': obj.site
+                        'slurpit_site': obj.site,
+                        'slurpit_serial': obj.serial,
+                        'slurpit_os_version': obj.os_version,
+                        'slurpit_snmp_uptime': obj.snmp_uptime
                     })               
 
                     # Update Site           
@@ -355,7 +361,10 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         'slurpit_manufacturer': obj.brand,
                         'slurpit_devicetype': obj.device_type,
                         'slurpit_ipv4': obj.ipv4,
-                        'slurpit_site': obj.site
+                        'slurpit_site': obj.site,
+                        'slurpit_serial': obj.serial,
+                        'slurpit_os_version': obj.os_version,
+                        'slurpit_snmp_uptime': obj.snmp_uptime
                     })     
                     other_imported_device = SlurpitImportedDevice.objects.filter(mapped_device=device).first()
                     if other_imported_device:
@@ -407,7 +416,10 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         'slurpit_manufacturer': obj.brand,
                         'slurpit_devicetype': obj.device_type,
                         'slurpit_ipv4': obj.ipv4,
-                        'slurpit_site': obj.site
+                        'slurpit_site': obj.site,
+                        'slurpit_serial': obj.serial,
+                        'slurpit_os_version': obj.os_version,
+                        'slurpit_snmp_uptime': obj.snmp_uptime
                     })    
                       
                     other_imported_device = SlurpitImportedDevice.objects.filter(mapped_device=device).first()
