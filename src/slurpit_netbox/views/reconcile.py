@@ -123,7 +123,7 @@ class ReconcileView(generic.ObjectListView):
                 diff_removed = None
                 action = 'Updated'
                 
-                prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region']
+                prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type', '_site', '_site_group', '_location', '_region']
 
                 incomming_queryset = SlurpitPrefix.objects.filter(pk=pk)
                 incomming_change = incomming_queryset.values(*prefix_fields).first()
@@ -677,12 +677,10 @@ class ReconcileView(generic.ObjectListView):
                     while offset < count:
                         batch_qs = batch_insert_qs[offset:offset + BATCH_SIZE]
                         batch_ids = batch_insert_ids[offset:offset + BATCH_SIZE]
-                        to_import = []        
-                        for prefix_item in batch_qs:
-                            to_import.append(prefix_item)
 
                         with transaction.atomic():
-                            Prefix.objects.bulk_create(to_import)
+                            for prefix_item in batch_qs:
+                                prefix_item.save() # needs save to tigger the @receiver(post_save) signal
                             SlurpitPrefix.objects.filter(pk__in=batch_ids).delete()
                         offset += BATCH_SIZE
 
@@ -895,7 +893,7 @@ class ReconcileDetailView(generic.ObjectView):
             diff_removed = None
             action = 'Updated'
             
-            prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region']
+            prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type_id']
 
             incomming_queryset = SlurpitPrefix.objects.filter(pk=pk)
             incomming_change = incomming_queryset.values(*prefix_fields).first()

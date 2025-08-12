@@ -24,7 +24,7 @@ from ..references.generic import create_form, get_form_device_data, SlurpitViewM
 from ..references.imports import * 
 from ..filtersets import SlurpitImportedDeviceFilterSet
 from dcim.models import DeviceType, Interface
-from ipam.models import IPAddress
+from ipam.models import IPAddress, Prefix
 from django.db.models.functions import Cast, Substr
 
 class TrimCIDR(Func):
@@ -220,6 +220,9 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     device = obj.mapped_device
                     device.name = obj.hostname
                     
+                    if obj.serial:
+                        device.serial = obj.serial
+                        
                     set_device_custom_fields(device, {
                         'slurpit_hostname': obj.hostname,
                         'slurpit_fqdn': obj.fqdn,
@@ -227,7 +230,10 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         'slurpit_manufacturer': obj.brand,
                         'slurpit_devicetype': obj.device_type,
                         'slurpit_ipv4': obj.ipv4,
-                        'slurpit_site': obj.site
+                        'slurpit_site': obj.site,
+                        'slurpit_serial': obj.serial,
+                        'slurpit_os_version': obj.os_version,
+                        'slurpit_snmp_uptime': obj.snmp_uptime
                     })    
 
                     # Update Site           
@@ -247,6 +253,9 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                 for obj in self.queryset:
                     device = obj.mapped_device
                     device.name = obj.hostname
+                    
+                    if obj.serial:
+                        device.serial = obj.serial
                     set_device_custom_fields(device, {
                         'slurpit_hostname': obj.hostname,
                         'slurpit_fqdn': obj.fqdn,
@@ -254,7 +263,10 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         'slurpit_manufacturer': obj.brand,
                         'slurpit_devicetype': obj.device_type,
                         'slurpit_ipv4': obj.ipv4,
-                        'slurpit_site': obj.site
+                        'slurpit_site': obj.site,
+                        'slurpit_serial': obj.serial,
+                        'slurpit_os_version': obj.os_version,
+                        'slurpit_snmp_uptime': obj.snmp_uptime
                     })               
 
                     # Update Site           
@@ -279,7 +291,13 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
 
                     # Interface
                     if obj.ipv4:
-                        address = f'{obj.ipv4}/32'
+                        
+                        prefix = Prefix.objects.filter(prefix__net_contains=obj.ipv4).order_by('-prefix').first()
+                        if prefix:                            
+                            address = f'{obj.ipv4}/{prefix.prefix.prefixlen}'
+                        else:
+                            address = f'{obj.ipv4}/32'
+
                         #### Remove Primary IPv4 on other device
                         other_device = Device.objects.filter(primary_ip4__address=address).first()
                         if other_device:
@@ -314,19 +332,36 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
             conflic = request.GET.get('conflicted')
             if conflic == 'create':
                 Device.objects.filter(name__lower__in=self.queryset.values('hostname__lower')).delete()
-                
-                matching_ipv4s = [f"{ipv4}/32" for ipv4 in self.queryset.values_list('ipv4', flat=True).distinct()]
+
+                matching_ipv4s = []
+                for ipv4 in self.queryset.values_list('ipv4', flat=True).distinct():
+                    prefix = Prefix.objects.filter(prefix__net_contains=ipv4).order_by('-prefix').first()
+                    if prefix:                        
+                        address = f'{ipv4}/{prefix.prefix.prefixlen}'
+                    else:
+                        address = f'{ipv4}/32'
+                    matching_ipv4s.append(address)
                 # Delete the matching Device records
                 Device.objects.filter(primary_ip4__address__in=matching_ipv4s).delete()
 
 
             elif conflic == 'update_slurpit':
                 for obj in self.queryset:
+
+                    prefix = Prefix.objects.filter(prefix__net_contains=obj.ipv4).order_by('-prefix').first()
+                    if prefix:
+                        
+                        address = f'{obj.ipv4}/{prefix.prefix.prefixlen}'
+                    else:
+                        address = f'{obj.ipv4}/32'
+
                     device = Device.objects.filter(name__iexact=obj.hostname).first()
                     # Management IP Case
                     if device is None:
-                        device = Device.objects.filter(primary_ip4__address=f'{obj.ipv4}/32').first()
+                        device = Device.objects.filter(primary_ip4__address=address).first()
 
+                    if obj.serial:
+                        device.serial = obj.serial
                     set_device_custom_fields(device, {
                         'slurpit_hostname': obj.hostname,
                         'slurpit_fqdn': obj.fqdn,
@@ -334,13 +369,16 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         'slurpit_manufacturer': obj.brand,
                         'slurpit_devicetype': obj.device_type,
                         'slurpit_ipv4': obj.ipv4,
-                        'slurpit_site': obj.site
+                        'slurpit_site': obj.site,
+                        'slurpit_serial': obj.serial,
+                        'slurpit_os_version': obj.os_version,
+                        'slurpit_snmp_uptime': obj.snmp_uptime
                     })     
                     other_imported_device = SlurpitImportedDevice.objects.filter(mapped_device=device).first()
                     if other_imported_device:
                         other_imported_device.delete()
 
-                    obj.mapped_device = device    
+                    obj.mapped_device = device
                     
                     # Update Site           
                     defaults = get_default_objects()
@@ -360,8 +398,15 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
             else:
                 for obj in self.queryset:
                     device = None
+                    
                     if obj.ipv4:
-                        device = Device.objects.filter(primary_ip4__address=f'{obj.ipv4}/32').first()
+                        prefix = Prefix.objects.filter(prefix__net_contains=obj.ipv4).order_by('-prefix').first()
+                        if prefix:                            
+                            address = f'{obj.ipv4}/{prefix.prefix.prefixlen}'
+                        else:
+                            address = f'{obj.ipv4}/32'
+
+                        device = Device.objects.filter(primary_ip4__address=address).first()
 
                     if device is None: # Name Case
                         device = Device.objects.filter(name__iexact=obj.hostname).first()
@@ -372,6 +417,9 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                                 other_device.delete()
                             
                             device.name = obj.hostname
+                    
+                    if obj.serial:
+                        device.serial = obj.serial
                     set_device_custom_fields(device, {
                         'slurpit_hostname': obj.hostname,
                         'slurpit_fqdn': obj.fqdn,
@@ -379,7 +427,10 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         'slurpit_manufacturer': obj.brand,
                         'slurpit_devicetype': obj.device_type,
                         'slurpit_ipv4': obj.ipv4,
-                        'slurpit_site': obj.site
+                        'slurpit_site': obj.site,
+                        'slurpit_serial': obj.serial,
+                        'slurpit_os_version': obj.os_version,
+                        'slurpit_snmp_uptime': obj.snmp_uptime
                     })    
                       
                     other_imported_device = SlurpitImportedDevice.objects.filter(mapped_device=device).first()
@@ -410,7 +461,11 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
 
                     # Interface
                     if obj.ipv4:
-                        address = f'{obj.ipv4}/32'
+                        prefix = Prefix.objects.filter(prefix__net_contains=obj.ipv4).order_by('-prefix').first()
+                        if prefix:                            
+                            address = f'{obj.ipv4}/{prefix.prefix.prefixlen}'
+                        else:
+                            address = f'{obj.ipv4}/32'
                         #### Remove Primary IPv4 on other device
                         other_device = Device.objects.filter(primary_ip4__address=address).first()
                         if other_device:

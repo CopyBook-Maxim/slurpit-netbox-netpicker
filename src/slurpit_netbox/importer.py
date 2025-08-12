@@ -16,10 +16,10 @@ from .references import base_name, plugin_type, custom_field_data_name
 from .references.generic import get_default_objects, status_inventory, status_offline, get_create_dcim_objects, set_device_custom_fields, status_active
 from .references.imports import *
 from dcim.models import Interface, Site
-from ipam.models import IPAddress
+from ipam.models import IPAddress, Prefix
 
 BATCH_SIZE = 512
-columns = ('slurpit_id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', 'createddate', 'changeddate', 'site')
+columns = ('slurpit_id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', "serial", "os_version", "snmp_uptime", 'createddate', 'changeddate', 'site')
 
 import re
 
@@ -233,15 +233,24 @@ def handle_changed():
                 #     if result.mapped_device.status==status_offline():
                 #         result.mapped_device.status=status_active()
 
-                    
+                if device.serial:
+                    result.mapped_device.serial = device.serial
                 set_device_custom_fields(result.mapped_device, {
                     'slurpit_hostname': device.hostname,
                     'slurpit_fqdn': device.fqdn,
                     'slurpit_ipv4': device.ipv4,
+                    'slurpit_serial': device.serial,
+                    'slurpit_os_version': device.os_version,
+                    'slurpit_snmp_uptime': device.snmp_uptime
                 })   
                 
                 if device.ipv4:
-                    address = f'{device.ipv4}/32'
+                    prefix = Prefix.objects.filter(prefix__net_contains=device.ipv4).order_by('-prefix').first()
+                    if prefix:
+                        
+                        address = f'{device.ipv4}/{prefix.prefix.prefixlen}'
+                    else:
+                        address = f'{device.ipv4}/32'
                     #### Remove Primary IPv4 on other device
                     other_device = Device.objects.filter(primary_ip4__address=address).first()
                     if other_device:
@@ -294,7 +303,10 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
         'slurpit_manufacturer': staged.brand,
         'slurpit_devicetype': staged.device_type,
         'slurpit_ipv4': staged.ipv4,
-        'slurpit_site': staged.site
+        'slurpit_site': staged.site,
+        'slurpit_serial': staged.serial,
+        'slurpit_os_version': staged.os_version,
+        'slurpit_snmp_uptime': staged.snmp_uptime
     })    
 
     try:
@@ -321,6 +333,8 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
         **extra,
         # 'primary_ip4_id': int(ip_address(staged.fqdn)),
     })
+    if staged.serial:
+        kw['serial'] = staged.serial
     if 'device_type' not in extra and staged.mapped_devicetype is not None:
         kw['device_type'] = staged.mapped_devicetype
         
@@ -340,7 +354,11 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
 
     #Interface for new device.
     if staged.ipv4:
-        address = f'{staged.ipv4}/32'
+        prefix = Prefix.objects.filter(prefix__net_contains=staged.ipv4).order_by('-prefix').first()
+        if prefix:
+            address = f'{staged.ipv4}/{prefix.prefix.prefixlen}'
+        else:
+            address = f'{staged.ipv4}/32'
         #### Remove Primary IPv4 on other device
         other_device = Device.objects.filter(primary_ip4__address=address).first()
         if other_device:
@@ -357,6 +375,7 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
         ipaddress.assigned_object = interface
         ipaddress.save()
         device.primary_ip4 = ipaddress
+
         device.save()
     
     return device

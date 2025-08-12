@@ -49,11 +49,16 @@ class ConditionalToggle(ToggleColumn):
 class ConditionalLink(Column):
     def render(self, value, bound_column, record):
         if record.mapped_device_id is None:
-            
+
             original_value = ""
             original_device = Device.objects.filter(name__iexact=record.hostname).first()
             if original_device is None and record.ipv4:
-                original_device = Device.objects.filter(primary_ip4__address=f'{record.ipv4}/32').first()
+                prefix = Prefix.objects.filter(prefix__net_contains=record.ipv4).order_by('-prefix').first()
+                if prefix:                    
+                    address = f'{record.ipv4}/{prefix.prefix.prefixlen}'
+                else:
+                    address = f'{record.ipv4}/32'
+                original_device = Device.objects.filter(primary_ip4__address=address).first()
 
             if original_device:
                 original_value = original_device.name
@@ -72,9 +77,15 @@ class ConditionalLink(Column):
 
 class ConflictedColumn(Column):
     def render(self, value, bound_column, record):
+        prefix = Prefix.objects.filter( prefix__net_contains=record.ipv4).order_by('-prefix').first()
+        if prefix:
+            address = f'{record.ipv4}/{prefix.prefix.prefixlen}'
+        else:
+            address = f'{record.ipv4}/32'
+            
         device = Device.objects.filter(name__iexact=record.hostname).first()
         if device is None:
-            device = Device.objects.filter(primary_ip4__address=f'{record.ipv4}/32').first()
+            device = Device.objects.filter(primary_ip4__address=address).first()
 
         original_value = ""
         column_name = bound_column.verbose_name
@@ -138,10 +149,22 @@ class SlurpitImportedDeviceTable(NetBoxTable):
         verbose_name = _('Last seen')
     )
 
+    serial = tables.Column(
+        verbose_name = _('Serialname')
+    )
+    
+    os_version = tables.Column(
+        verbose_name = _('Os Version')
+    )
+    
+    snmp_uptime = tables.Column(
+        verbose_name = _('Snmp Uptime')
+    )
+
     class Meta(NetBoxTable.Meta):
         model = SlurpitImportedDevice
-        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'ipv4', 'device_os', 'site', 'device_type', 'last_updated')
-        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'site', 'last_updated')
+        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'ipv4', 'device_os', 'site', 'device_type', "serial", "os_version", "snmp_uptime", 'last_updated')
+        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'site', "serial", "os_version", "snmp_uptime", 'last_updated')
 
 class PlatformTypeColumn(Column):
     def render(self, value, bound_column, record):
@@ -180,10 +203,22 @@ class SlurpitOnboardedDeviceTable(NetBoxTable):
         verbose_name = _('Last seen')
     )
 
+    serial = tables.Column(
+        verbose_name = _('Serialname')
+    )
+    
+    os_version = tables.Column(
+        verbose_name = _('Os Version')
+    )
+    
+    snmp_uptime = tables.Column(
+        verbose_name = _('Snmp Uptime')
+    )
+
     class Meta(NetBoxTable.Meta):
         model = SlurpitImportedDevice
-        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'ipv4', 'device_os', 'device_type', 'site', 'last_updated')
-        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'site','last_updated')
+        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'ipv4', 'device_os', 'device_type', 'site', "serial", "os_version", "snmp_uptime", 'last_updated')
+        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'site', "serial", "os_version", "snmp_uptime",'last_updated')
 
 class ConflictDeviceTable(NetBoxTable):
     actions = columns.ActionsColumn(actions=tuple())
@@ -213,8 +248,8 @@ class ConflictDeviceTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = SlurpitImportedDevice
-        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'device_os', 'device_type', 'ipv4', 'last_updated')
-        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', 'last_updated')
+        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'device_os', 'device_type', 'ipv4', "serial", "os_version", "snmp_uptime", 'last_updated')
+        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'ipv4', "serial", "os_version", "snmp_uptime", 'last_updated')
 
 
 class MigratedDeviceTable(NetBoxTable):
@@ -239,6 +274,18 @@ class MigratedDeviceTable(NetBoxTable):
         verbose_name = _('Last seen')
     )
 
+    serial = tables.Column(
+        verbose_name = _('Serialname')
+    )
+    
+    os_version = tables.Column(
+        verbose_name = _('Os Version')
+    )
+    
+    snmp_uptime = tables.Column(
+        verbose_name = _('Snmp Uptime')
+    )
+
     # slurpit_devicetype = tables.Column(
     #     accessor='slurpit_device_type', 
     #     verbose_name='Original Device Type'
@@ -246,8 +293,8 @@ class MigratedDeviceTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = SlurpitImportedDevice
-        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'device_os', 'device_type', 'site', 'last_updated')
-        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'site', 'last_updated')
+        fields = ('pk', 'id', 'hostname', 'fqdn','brand', 'IP', 'device_os', 'device_type', 'site', "serial", "os_version", "snmp_uptime", 'last_updated')
+        default_columns = ('hostname', 'fqdn', 'device_os', 'brand' , 'device_type', 'site', "serial", "os_version", "snmp_uptime", 'last_updated')
 
     def render_device_os(self, value, record):
         original_val = record.mapped_device.custom_field_data["slurpit_platform"]
@@ -383,6 +430,7 @@ class SlurpitInterfaceTable(BaseInterfaceTable):
             'args': [Accessor('device_id')],
         }
     )
+    
     speed_formatted = columns.TemplateColumn(
         template_code='{% load helpers %}{{ value|humanize_speed }}',
         accessor=Accessor('speed'),

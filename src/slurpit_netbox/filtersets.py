@@ -52,7 +52,7 @@ class SlurpitImportedDeviceFilterSet(BaseFilterSet):
 
     class Meta:
         model = SlurpitImportedDevice
-        fields = ["id", "hostname", "device_os", "device_type", "fqdn", "brand", "ipv4", "site"]
+        fields = ["id", "hostname", "device_os", "device_type", "fqdn", "brand", "ipv4", "site", "serial", "os_version", "snmp_uptime"]
 
     def search(self, queryset, name, value):
         if not value.strip():
@@ -63,7 +63,9 @@ class SlurpitImportedDeviceFilterSet(BaseFilterSet):
             Q(device_type__icontains=value) | 
             Q(fqdn__icontains=value) | 
             Q(brand__icontains=value) | 
-            Q(ipv4__icontains=value)
+            Q(ipv4__icontains=value) | 
+            Q(serial__icontains=value) | 
+            Q(os_version__icontains=value)
         )
 
 class SlurpitPrefixFilterSet(BaseFilterSet):
