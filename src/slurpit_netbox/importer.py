@@ -301,7 +301,7 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
         'slurpit_ipv4': staged.ipv4,
         'slurpit_site': staged.site,
         'slurpit_serial': staged.serial,
-        'slurpit_os_verion': staged.os_version,
+        'slurpit_os_version': staged.os_version,
         'slurpit_snmp_uptime': staged.snmp_uptime
     })    
 
