@@ -233,11 +233,15 @@ def handle_changed():
                 #     if result.mapped_device.status==status_offline():
                 #         result.mapped_device.status=status_active()
 
-                    
+                if device.serial:
+                    result.mapped_device.serial = device.serial
                 set_device_custom_fields(result.mapped_device, {
                     'slurpit_hostname': device.hostname,
                     'slurpit_fqdn': device.fqdn,
                     'slurpit_ipv4': device.ipv4,
+                    'slurpit_serial': device.serial,
+                    'slurpit_os_version': device.os_version,
+                    'slurpit_snmp_uptime': device.snmp_uptime
                 })   
                 
                 if device.ipv4:
@@ -329,6 +333,8 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
         **extra,
         # 'primary_ip4_id': int(ip_address(staged.fqdn)),
     })
+    if staged.serial:
+        kw['serial'] = staged.serial
     if 'device_type' not in extra and staged.mapped_devicetype is not None:
         kw['device_type'] = staged.mapped_devicetype
         

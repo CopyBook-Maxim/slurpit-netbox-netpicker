@@ -220,6 +220,9 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     device = obj.mapped_device
                     device.name = obj.hostname
                     
+                    if obj.serial:
+                        device.serial = obj.serial
+                        
                     set_device_custom_fields(device, {
                         'slurpit_hostname': obj.hostname,
                         'slurpit_fqdn': obj.fqdn,
@@ -250,6 +253,9 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                 for obj in self.queryset:
                     device = obj.mapped_device
                     device.name = obj.hostname
+                    
+                    if obj.serial:
+                        device.serial = obj.serial
                     set_device_custom_fields(device, {
                         'slurpit_hostname': obj.hostname,
                         'slurpit_fqdn': obj.fqdn,
@@ -354,6 +360,8 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     if device is None:
                         device = Device.objects.filter(primary_ip4__address=address).first()
 
+                    if obj.serial:
+                        device.serial = obj.serial
                     set_device_custom_fields(device, {
                         'slurpit_hostname': obj.hostname,
                         'slurpit_fqdn': obj.fqdn,
@@ -409,6 +417,9 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                                 other_device.delete()
                             
                             device.name = obj.hostname
+                    
+                    if obj.serial:
+                        device.serial = obj.serial
                     set_device_custom_fields(device, {
                         'slurpit_hostname': obj.hostname,
                         'slurpit_fqdn': obj.fqdn,
