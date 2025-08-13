@@ -498,6 +498,9 @@ class SlurpitIPAMView(SlurpitViewSet):
                 if unique_ipaddress in duplicates:
                     continue
 
+                if unique_ipaddress.endswith("/32"):
+                    unique_ipaddress = unique_ipaddress[:-3]
+
                 if '/' not in unique_ipaddress:
                     prefix = Prefix.objects.filter(prefix__net_contains=unique_ipaddress).order_by('-prefix').first()
 
