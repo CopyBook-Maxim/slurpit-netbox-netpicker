@@ -216,6 +216,15 @@ class SlurpitInterface(ModularComponentModel, BaseInterface, CabledObjectModel, 
         null=True,
         verbose_name=_('ignore duplex'),
     )
+    
+    reconcile_fields = (
+        'module', 'type', 'speed', 'duplex', 'label', 'description', 'enabled', 'device'
+    )
+
+    ignore_fields = (
+        'ignore_module', 'ignore_type', 'ignore_speed', 'ignore_duplex',
+    )
+
     class Meta:
         verbose_name = _('Slurpit Device Interface')
         verbose_name_plural = _('Slurpit Device Interface')

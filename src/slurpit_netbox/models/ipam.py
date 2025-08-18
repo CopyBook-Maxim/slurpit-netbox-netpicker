@@ -103,6 +103,14 @@ class SlurpitInitIPAddress(PrimaryModel):
         verbose_name=_('ignore description'),
     )
 
+    reconcile_fields = (
+        'status', 'role', 'vrf', 'tenant', 'description', 'dns_name',
+    )
+
+    ignore_fields = (
+        'ignore_status', 'ignore_vrf', 'ignore_tenant', 'ignore_role', 'ignore_description',
+    )
+
     class Meta:
         verbose_name = _('Slurpit IP address')
         verbose_name_plural = _('Slurpit  IP addresses')
