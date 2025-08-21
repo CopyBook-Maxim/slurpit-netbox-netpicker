@@ -1,4 +1,4 @@
-import json
+import ipaddress
 import traceback
 from datetime import timedelta
 
@@ -469,6 +469,7 @@ class SlurpitIPAMView(SlurpitViewSet):
                 initial_ipaddress_values['tenant'] = None
                 initial_ipaddress_values['role'] = role
                 initial_ipaddress_values['description'] = ''
+                initial_ipaddress_values['dns_name'] = ''
                 initial_ipaddress_values['status'] = 'active'
 
             total_errors = {}
@@ -480,9 +481,6 @@ class SlurpitIPAMView(SlurpitViewSet):
             # Form validation 
             for record in request.data[::-1]:
                 unique_ipaddress = f'{record["address"]}'
-
-                if unique_ipaddress in duplicates:
-                    continue
 
                 if 'vrf' in record and len(record['vrf']) > 0:
                     vrf = VRF.objects.filter(name=record['vrf'])
@@ -507,8 +505,12 @@ class SlurpitIPAMView(SlurpitViewSet):
                         unique_ipaddress = f'{unique_ipaddress}/32'
 
                 record['address'] = unique_ipaddress
+
+                record['stripped_address'] = str(ipaddress.ip_interface(record['address']).ip)
+                if record['stripped_address'] in duplicates:
+                    continue
                 
-                duplicates.append(unique_ipaddress)
+                duplicates.append(record['stripped_address'])
 
                 new_data = {**initial_ipaddress_values, **record}
                 total_ips.append(new_data)
@@ -519,15 +521,15 @@ class SlurpitIPAMView(SlurpitViewSet):
                 batch_update_qs = []
                 batch_insert_qs = []
 
-                for item in total_ips:
 
-                    slurpit_ipaddress_item = SlurpitInitIPAddress.objects.filter(address=item['address'], vrf=item['vrf'])
+                for item in total_ips:
+                    slurpit_ipaddress_item = SlurpitInitIPAddress.objects.filter(address__net_host=record['stripped_address'], vrf=item['vrf'])
                     
                     if slurpit_ipaddress_item:
                         slurpit_ipaddress_item = slurpit_ipaddress_item.first()
 
                         allowed_fields_with_none = {'status'}
-                        update = False
+                        update = record['address'] != slurpit_ipaddress_item.address
                         for field, value in item.items():
                             current = getattr(slurpit_ipaddress_item, field, None)
                             if current != value:
@@ -537,7 +539,7 @@ class SlurpitIPAMView(SlurpitViewSet):
                         if update:
                             batch_update_qs.append(slurpit_ipaddress_item)
                     else:
-                        obj = IPAddress.objects.filter(address=item['address'], vrf=vrf)
+                        obj = IPAddress.objects.filter(address__net_host=record['stripped_address'], vrf=vrf)
                         not_null_fields = {'role', 'description', 'tenant', 'dns_name'}
                         new_ipaddress = {}
 
@@ -554,8 +556,10 @@ class SlurpitIPAMView(SlurpitViewSet):
 
                                 if field in not_null_fields and (new_ipaddress[field] is None or new_ipaddress[field] == ""):
                                     new_ipaddress[field] = old_ipaddress[field]
+                                    if not new_ipaddress[field]:
+                                        new_ipaddress[field] = initial_ipaddress_values[field]
 
-                            if new_ipaddress == old_ipaddress:
+                            if new_ipaddress == old_ipaddress and item['address'] == obj.address:
                                 continue
                         else:
                             for field in SlurpitInitIPAddress.reconcile_fields:

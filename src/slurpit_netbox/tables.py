@@ -1,3 +1,4 @@
+import ipaddress
 import django_tables2 as tables
 from django.utils.safestring import mark_safe
 from django.utils.html import escape
@@ -416,7 +417,8 @@ class SlurpitIPAMTable(TenancyColumnsMixin,NetBoxTable):
         default_columns = ('address', 'vrf', 'status', 'commit_action', 'dns_name', 'description', 'last_updated', 'edit')
 
     def render_commit_action(self, record):
-        obj = IPAddress.objects.filter(address=record.address, vrf=record.vrf)
+        ip = str(ipaddress.ip_interface(record.address.ip))
+        obj = IPAddress.objects.filter(address__net_host=ip, vrf=record.vrf)
         if obj:
             return 'Changing'
         return 'Adding'

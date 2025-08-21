@@ -723,10 +723,12 @@ class ReconcileView(generic.ObjectListView):
                     updated_fields = list(set(updated_fields) - set(fields_to_remove))
 
                     for item in reconcile_items:
-                        netbox_ipaddress = IPAddress.objects.filter(address=item.address, vrf=item.vrf)
+                        address = str(item.address.ip)
+                        netbox_ipaddress = IPAddress.objects.filter(address__net_host=address, vrf=item.vrf)
                         # If the ip address is existed in netbox
                         if netbox_ipaddress:
                             netbox_ipaddress = netbox_ipaddress.first()
+                            netbox_ipaddress.address = item.address
 
                             if netbox_ipaddress.pk and hasattr(netbox_ipaddress, 'snapshot'):
                                 netbox_ipaddress.snapshot()
@@ -939,6 +941,7 @@ class ReconcileDetailView(generic.ObjectView):
             incomming_obj = incomming_queryset.values(*ipam_fields).first()
 
             ipaddress = str(incomming_queryset.first().address)
+            stripped_address = str(incomming_queryset.first().address.ip)
             updated_time = incomming_queryset.first().last_updated
 
 
@@ -948,7 +951,7 @@ class ReconcileDetailView(generic.ObjectView):
             incomming_obj['address'] = ipaddress
             incomming_change = {**incomming_obj}
 
-            current_queryset = IPAddress.objects.filter(address=ipaddress, vrf=vrf)
+            current_queryset = IPAddress.objects.filter(address__net_host=stripped_address, vrf=vrf)
             if current_queryset:
                 current_obj = current_queryset.values(*ipam_fields).first()
                 current_obj['address'] = ipaddress
