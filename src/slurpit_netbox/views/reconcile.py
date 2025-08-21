@@ -658,7 +658,7 @@ class ReconcileView(generic.ObjectListView):
                                     prefix = item.prefix,
                                     status = item.status, 
                                     vrf = item.vrf,
-                                    role = item. role, 
+                                    role = item.role, 
                                     vlan = item.vlan,
                                     description = item.description,
                                     tenant = item.tenant,
@@ -756,7 +756,7 @@ class ReconcileView(generic.ObjectListView):
                                 IPAddress(
                                     address = item.address, 
                                     vrf = item.vrf,
-                                    status = item. status, 
+                                    status = item.status, 
                                     role = item.role,
                                     description = item.description,
                                     tenant = item.tenant,

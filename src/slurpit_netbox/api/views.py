@@ -441,7 +441,6 @@ class SlurpitIPAMView(SlurpitViewSet):
             initial_ipaddress_values = {}
             ipaddress_update_ignore_values = []
             tenant = None
-            role = ""
             if initial_obj:
                 enable_reconcile = initial_obj['enable_reconcile']
                 del initial_obj['enable_reconcile']
@@ -453,12 +452,9 @@ class SlurpitIPAMView(SlurpitViewSet):
                     vrf = VRF.objects.get(pk=initial_ipaddress_values['vrf'])
                 if initial_ipaddress_values['tenant'] is not None:
                     tenant = Tenant.objects.get(pk=initial_ipaddress_values['tenant'])
-                if initial_ipaddress_values['role'] is not None:
-                    role = Role.objects.get(pk=initial_ipaddress_values['role'])
 
                 initial_ipaddress_values['vrf'] = vrf
                 initial_ipaddress_values['tenant'] = tenant
-                initial_ipaddress_values['role'] = role
 
                 for key in initial_ipaddress_values.keys():
                     if key.startswith('ignore_') and initial_ipaddress_values[key]:
@@ -467,7 +463,7 @@ class SlurpitIPAMView(SlurpitViewSet):
             else:
                 initial_ipaddress_values['vrf'] = None
                 initial_ipaddress_values['tenant'] = None
-                initial_ipaddress_values['role'] = role
+                initial_ipaddress_values['role'] = ''
                 initial_ipaddress_values['description'] = ''
                 initial_ipaddress_values['dns_name'] = ''
                 initial_ipaddress_values['status'] = 'active'

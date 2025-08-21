@@ -263,9 +263,10 @@ def handle_changed():
                     else:
                         interface = Interface.objects.create(name='management1', device=result.mapped_device, type='other')
 
-                    ipaddress = IPAddress.objects.filter(address=address)
+                    ipaddress = IPAddress.objects.filter(address__net_host=device.ipv4)
                     if ipaddress:
                         ipaddress = ipaddress.first()
+                        ipaddress.address = address
                     else:
                         ipaddress = IPAddress.objects.create(address=address, status='active')
                     
@@ -367,9 +368,10 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
             
         interface, _ = Interface.objects.get_or_create(name=interface_name, device=device, defaults={'type':'other'})
         
-        ipaddress = IPAddress.objects.filter(address=address)
+        ipaddress = IPAddress.objects.filter(address__net_host=staged.ipv4)
         if ipaddress:
             ipaddress = ipaddress.first()
+            ipaddress.address = address
         else:
             ipaddress = IPAddress.objects.create(address=address, status='active')
         ipaddress.assigned_object = interface
