@@ -113,9 +113,9 @@ class DeviceViewSet(
         sync_sites()
         errors = device_validator(request.data)
         if errors:
-            return JsonResponse({'status': 'error', 'errors': errors}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': errors}, status=400)
         if len(request.data) != 1:
-            return JsonResponse({'status': 'error', 'errors': ['List size should be 1']}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': ['List size should be 1']}, status=400)
 
         start_device_import()
         import_devices(request.data)
@@ -127,7 +127,7 @@ class DeviceViewSet(
     def sync(self, request):            
         errors = device_validator(request.data)
         if errors:
-            return JsonResponse({'status': 'error', 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({'status': 'errors', 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
         
         ids = [obj['id'] for obj in request.data]
         hostnames = [obj['hostname'] for obj in request.data]
@@ -193,7 +193,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
         # Validate request Interface data
         errors = interface_validator(request.data)
         if errors:
-            return JsonResponse({'status': 'error', 'errors': errors}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': errors}, status=400)
 
         try:
             # Get initial values for Interface
@@ -368,7 +368,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
                         error_key = f'{new_data["name"]}({"Global" if new_data["device"] is None else new_data["device"]})'
                         total_errors[error_key] = error_list_dict
 
-                        return JsonResponse({'status': 'error', 'errors': total_errors}, status=400)
+                        return JsonResponse({'status': 'errors', 'errors': total_errors}, status=400)
                     else:
                         insert_data.append(new_data)
 
@@ -430,7 +430,7 @@ class SlurpitIPAMView(SlurpitViewSet):
         # Validate request IPAM data
         errors = ipam_validator(request.data)
         if errors:
-            return JsonResponse({'status': 'error', 'errors': errors}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': errors}, status=400)
 
         vrf = None
         try:
@@ -441,7 +441,7 @@ class SlurpitIPAMView(SlurpitViewSet):
             initial_ipaddress_values = {}
             ipaddress_update_ignore_values = []
             tenant = None
-            role = None
+            role = ""
             if initial_obj:
                 enable_reconcile = initial_obj['enable_reconcile']
                 del initial_obj['enable_reconcile']
@@ -467,7 +467,7 @@ class SlurpitIPAMView(SlurpitViewSet):
             else:
                 initial_ipaddress_values['vrf'] = None
                 initial_ipaddress_values['tenant'] = None
-                initial_ipaddress_values['role'] = None
+                initial_ipaddress_values['role'] = role
                 initial_ipaddress_values['description'] = ''
                 initial_ipaddress_values['status'] = 'active'
 
@@ -563,7 +563,6 @@ class SlurpitIPAMView(SlurpitViewSet):
                         
                         obj = SlurpitInitIPAddress(
                             address = item['address'], 
-                            vrf = vrf,
                             **new_ipaddress
                         )
 
@@ -613,7 +612,7 @@ class SlurpitIPAMView(SlurpitViewSet):
                         error_key = f'{new_data["address"]}({"Global" if new_data["vrf"] is None else new_data["vrf"]})'
                         total_errors[error_key] = error_list_dict
 
-                        return JsonResponse({'status': 'error', 'errors': total_errors}, status=400)
+                        return JsonResponse({'status': 'errors', 'errors': total_errors}, status=400)
                     else:
                         insert_ips.append(new_data)
 
@@ -659,7 +658,7 @@ class SlurpitIPAMView(SlurpitViewSet):
 
             return JsonResponse({'status': 'success'})
         except Exception as e:
-            return JsonResponse({'status': 'error', 'errors': str(e)}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': f"Process threw error: {e} - {traceback.format_exc()}"}, status=400)
         
 
 
@@ -673,7 +672,7 @@ class SlurpitPrefixView(SlurpitViewSet):
         # Validate request prefix data
         errors = prefix_validator(request.data)
         if errors:
-            return JsonResponse({'status': 'error', 'errors': errors}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': errors}, status=400)
 
         vrf = None
         role = None
@@ -845,7 +844,7 @@ class SlurpitPrefixView(SlurpitViewSet):
                         error_key = f'{new_data["prefix"]}({"Global" if new_data["vrf"] is None else new_data["vrf"]})'
                         total_errors[error_key] = error_list_dict
 
-                        return JsonResponse({'status': 'error', 'errors': total_errors}, status=400)
+                        return JsonResponse({'status': 'errors', 'errors': total_errors}, status=400)
                     else:
                         insert_data.append(new_data)
 
@@ -916,7 +915,7 @@ class SlurpitVLANView(SlurpitViewSet):
         # Validate request vlan data
         errors = vlan_validator(request.data)
         if errors:
-            return JsonResponse({'status': 'error', 'errors': errors}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': errors}, status=400)
 
         tenant = None
         role = None
@@ -1105,7 +1104,7 @@ class SlurpitVLANView(SlurpitViewSet):
                         error_key = f'{new_data["name"]}({new_data["vid"]})'
                         total_errors[error_key] = error_list_dict
 
-                        return JsonResponse({'status': 'error', 'errors': total_errors}, status=400)
+                        return JsonResponse({'status': 'errors', 'errors': total_errors}, status=400)
                     else:
                         insert_data.append(new_data)
 
@@ -1173,7 +1172,7 @@ class SlurpitVLANView(SlurpitViewSet):
 
             return JsonResponse({'status': 'success'})
         except Exception as e:
-            return JsonResponse({'status': 'errors', 'errors': str(e)}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': f"Process threw error: {e} - {traceback.format_exc()}"}, status=400)
 
 class SlurpitPlanningViewSet(
         SlurpitViewSet
@@ -1199,7 +1198,7 @@ class SlurpitSiteView(SlurpitViewSet):
         try:
             create_sites(request.data[::-1])
         except Exception as e:
-            return JsonResponse({'status': 'errors', 'errors': str(e)}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': f"Process threw error: {e} - {traceback.format_exc()}"}, status=400)
 
         return JsonResponse({'status': 'success'})
         
