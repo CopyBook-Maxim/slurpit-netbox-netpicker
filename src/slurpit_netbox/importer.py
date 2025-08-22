@@ -143,8 +143,8 @@ def import_devices(devices):
         device['slurpit_id'] = device.pop('id')
         
         try:
-            device['created'] = timezone.make_aware(datetime.strptime(device['created'], '%Y-%m-%d %H:%M:%S'), timezone.get_current_timezone())
-            device['last_updated'] = timezone.make_aware(datetime.strptime(device['last_updated'], '%Y-%m-%d %H:%M:%S'), timezone.get_current_timezone())          
+            device['created'] = timezone.make_aware(datetime.strptime(device['createddate'], '%Y-%m-%d %H:%M:%S'), timezone.get_current_timezone())
+            device['last_updated'] = timezone.make_aware(datetime.strptime(device['changeddate'], '%Y-%m-%d %H:%M:%S'), timezone.get_current_timezone())          
         except ValueError:
             continue
         to_insert.append(SlurpitStagedDevice(**{key: value for key, value in device.items() if key in columns}))
