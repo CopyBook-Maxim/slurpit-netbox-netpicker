@@ -6,7 +6,7 @@ def device_validator(data):
     # For example, we check if required fields are present and have the correct format:
     required_fields = ['id', 'hostname', 'fqdn', 'device_os', 
                        'device_type', 'brand', 'disabled', 
-                       'createddate', 'changeddate']
+                       'created', 'last_updated']
 
     if not isinstance(data, list):
         return ["Should be a list"]
@@ -20,7 +20,7 @@ def device_validator(data):
             else:
                 # Further validation logic for each field could go here,
                 # like checking that 'last_seen' is a valid datetime for instance:
-                if field in ['createddate', 'changeddate']:
+                if field in ['created', 'last_updated']:
                     try:
                         # Assuming the dates are in ISO format (YYYY-MM-DD HH:MM:SS)
                         datetime.strptime(entry[field], '%Y-%m-%d %H:%M:%S')

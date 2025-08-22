@@ -19,7 +19,7 @@ from dcim.models import Interface, Site
 from ipam.models import IPAddress, Prefix
 
 BATCH_SIZE = 512
-columns = ('slurpit_id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', "serial", "os_version", "snmp_uptime", 'createddate', 'changeddate', 'site')
+columns = ('slurpit_id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', "serial", "os_version", "snmp_uptime", 'created', 'last_updated', 'site')
 
 import re
 
@@ -143,8 +143,8 @@ def import_devices(devices):
         device['slurpit_id'] = device.pop('id')
         
         try:
-            device['createddate'] = timezone.make_aware(datetime.strptime(device['createddate'], '%Y-%m-%d %H:%M:%S'), timezone.get_current_timezone())
-            device['changeddate'] = timezone.make_aware(datetime.strptime(device['changeddate'], '%Y-%m-%d %H:%M:%S'), timezone.get_current_timezone())          
+            device['created'] = timezone.make_aware(datetime.strptime(device['created'], '%Y-%m-%d %H:%M:%S'), timezone.get_current_timezone())
+            device['last_updated'] = timezone.make_aware(datetime.strptime(device['last_updated'], '%Y-%m-%d %H:%M:%S'), timezone.get_current_timezone())          
         except ValueError:
             continue
         to_insert.append(SlurpitStagedDevice(**{key: value for key, value in device.items() if key in columns}))
@@ -205,13 +205,13 @@ def handle_new_comers():
 
     
 def handle_changed():
-    latest_changeddate_subquery = SlurpitImportedDevice.objects.filter(
+    latest_changed_subquery = SlurpitImportedDevice.objects.filter(
         slurpit_id=OuterRef('slurpit_id')
-    ).order_by('-changeddate').values('changeddate')[:1]
+    ).order_by('-last_updated').values('last_updated')[:1]
     qs = SlurpitStagedDevice.objects.annotate(
-        latest_changeddate=Subquery(latest_changeddate_subquery)
+        latest_changed=Subquery(latest_changed_subquery)
     ).filter(
-        changeddate__gt=F('latest_changeddate')
+        last_updated__gt=F('latest_changed')
     )
     offset = 0
     count = len(qs)
@@ -252,7 +252,7 @@ def handle_changed():
                     else:
                         address = f'{device.ipv4}/32'
                     #### Remove Primary IPv4 on other device
-                    other_device = Device.objects.filter(primary_ip4__address=address).first()
+                    other_device = Device.objects.filter(primary_ip4__address__net_host=device.ipv4).first()
                     if other_device:
                         other_device.primary_ip4 = None
                         other_device.save()
@@ -360,8 +360,9 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
             address = f'{staged.ipv4}/{prefix.prefix.prefixlen}'
         else:
             address = f'{staged.ipv4}/32'
+
         #### Remove Primary IPv4 on other device
-        other_device = Device.objects.filter(primary_ip4__address=address).first()
+        other_device = Device.objects.filter(primary_ip4__address__net_host=staged.ipv4).first()
         if other_device:
             other_device.primary_ip4 = None
             other_device.save()

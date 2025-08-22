@@ -139,7 +139,7 @@ class DeviceViewSet(
     def sync_start(self, request):
         sync_sites()
         threshold = timezone.now() - timedelta(days=1)
-        SlurpitStagedDevice.objects.filter(createddate__lt=threshold).delete()
+        SlurpitStagedDevice.objects.filter(created__lt=threshold).delete()
         return JsonResponse({'status': 'success'})
 
     @action(detail=False, methods=['post'],  url_path='sync_end')

@@ -177,6 +177,7 @@ class ReconcileView(generic.ObjectListView):
                 incomming_obj = incomming_queryset.values(*ipam_fields).first()
 
                 ipaddress = str(incomming_queryset.first().address)
+                ipaddress_stripped = str(incomming_queryset.first().address.ip)
                 updated_time = incomming_queryset.first().last_updated
 
 
@@ -186,10 +187,10 @@ class ReconcileView(generic.ObjectListView):
                 incomming_obj['address'] = ipaddress
                 incomming_change = {**incomming_obj}
 
-                current_queryset = IPAddress.objects.filter(address=ipaddress, vrf=vrf)
+                current_queryset = IPAddress.objects.filter(address__net_host=ipaddress_stripped, vrf=vrf)
                 if current_queryset:
                     current_obj = current_queryset.values(*ipam_fields).first()
-                    current_obj['address'] = ipaddress
+                    current_obj['address'] = str(current_obj['address'])
                     current_state = {**current_obj}
                     instance = current_queryset.first()
                 else:

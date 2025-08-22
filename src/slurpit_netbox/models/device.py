@@ -7,8 +7,8 @@ from dcim.models import Device, DeviceType
 "device_os": "cisco_ios",
 "device_type": "CATALYST 4510R+E",
 "added": "finder",
-"createddate": "2023-10-30 13:29:17",
-"changeddate": "2023-11-01 23:02:51"
+"created": "2023-10-30 13:29:17",
+"last_updated": "2023-11-01 23:02:51"
 """
 
 from netbox.models import NetBoxModel, PrimaryModel
@@ -26,8 +26,6 @@ class SlurpitStagedDevice(NetBoxModel):
     serial = models.CharField(max_length=255, null=True)
     os_version = models.CharField(max_length=255, null=True)
     snmp_uptime = models.CharField(max_length=255, null=True)
-    createddate = models.DateTimeField()
-    changeddate = models.DateTimeField()
     
     def __str__(self):
         return f"{self.hostname}"
@@ -46,8 +44,6 @@ class SlurpitImportedDevice(NetBoxModel):
     serial = models.CharField(max_length=255, null=True)
     os_version = models.CharField(max_length=255, null=True)
     snmp_uptime = models.CharField(max_length=255, null=True)
-    createddate = models.DateTimeField()
-    changeddate = models.DateTimeField()
     mapped_devicetype = models.ForeignKey(to=DeviceType, null=True, on_delete=models.SET_NULL)
     mapped_device = models.OneToOneField(to=Device, null=True, on_delete=models.CASCADE)
 
@@ -75,7 +71,7 @@ class SlurpitImportedDevice(NetBoxModel):
         self.snmp_uptime = device.snmp_uptime
         self.brand = device.brand
         self.site = device.site
-        self.createddate = device.createddate
-        self.changeddate = device.changeddate
+        self.created = device.created
+        self.last_updated = device.last_updated
 
     

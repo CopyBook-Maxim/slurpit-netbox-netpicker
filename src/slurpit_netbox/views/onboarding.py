@@ -299,7 +299,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                             address = f'{obj.ipv4}/32'
 
                         #### Remove Primary IPv4 on other device
-                        other_device = Device.objects.filter(primary_ip4__address=address).first()
+                        other_device = Device.objects.filter(primary_ip4__address__net_host=obj.ipv4).first()
                         if other_device:
                             other_device.primary_ip4 = None
                             other_device.save()
@@ -311,9 +311,10 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                             interface = Interface.objects.create(name='management1', device=device, type='other')
 
                         
-                        ipaddress = IPAddress.objects.filter(address=address)
+                        ipaddress = IPAddress.objects.filter(address__net_host=obj.ipv4)
                         if ipaddress:
                             ipaddress = ipaddress.first()
+                            ipaddress.address = address
                         else:
                             ipaddress = IPAddress.objects.create(address=address, status='active')
                         
@@ -335,30 +336,17 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
 
                 matching_ipv4s = []
                 for ipv4 in self.queryset.values_list('ipv4', flat=True).distinct():
-                    prefix = Prefix.objects.filter(prefix__net_contains=ipv4).order_by('-prefix').first()
-                    if prefix:                        
-                        address = f'{ipv4}/{prefix.prefix.prefixlen}'
-                    else:
-                        address = f'{ipv4}/32'
-                    matching_ipv4s.append(address)
+                    matching_ipv4s.append(ipv4)
                 # Delete the matching Device records
-                Device.objects.filter(primary_ip4__address__in=matching_ipv4s).delete()
+                Device.objects.filter(primary_ip4__address__net_host__in=matching_ipv4s).delete()
 
 
             elif conflic == 'update_slurpit':
                 for obj in self.queryset:
-
-                    prefix = Prefix.objects.filter(prefix__net_contains=obj.ipv4).order_by('-prefix').first()
-                    if prefix:
-                        
-                        address = f'{obj.ipv4}/{prefix.prefix.prefixlen}'
-                    else:
-                        address = f'{obj.ipv4}/32'
-
                     device = Device.objects.filter(name__iexact=obj.hostname).first()
                     # Management IP Case
                     if device is None:
-                        device = Device.objects.filter(primary_ip4__address=address).first()
+                        device = Device.objects.filter(primary_ip4__address__net_host=obj.ipv4).first()
 
                     if obj.serial:
                         device.serial = obj.serial
@@ -400,13 +388,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     device = None
                     
                     if obj.ipv4:
-                        prefix = Prefix.objects.filter(prefix__net_contains=obj.ipv4).order_by('-prefix').first()
-                        if prefix:                            
-                            address = f'{obj.ipv4}/{prefix.prefix.prefixlen}'
-                        else:
-                            address = f'{obj.ipv4}/32'
-
-                        device = Device.objects.filter(primary_ip4__address=address).first()
+                        device = Device.objects.filter(primary_ip4__address__net_host=obj.ipv4).first()
 
                     if device is None: # Name Case
                         device = Device.objects.filter(name__iexact=obj.hostname).first()
@@ -467,7 +449,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         else:
                             address = f'{obj.ipv4}/32'
                         #### Remove Primary IPv4 on other device
-                        other_device = Device.objects.filter(primary_ip4__address=address).first()
+                        other_device = Device.objects.filter(primary_ip4__address__net_host=obj.ipv4).first()
                         if other_device:
                             other_device.primary_ip4 = None
                             other_device.save()
@@ -478,9 +460,10 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                         else:
                             interface = Interface.objects.create(name='management1', device=device, type='other')
 
-                        ipaddress = IPAddress.objects.filter(address=address)
+                        ipaddress = IPAddress.objects.filter(address__net_host=obj.ipv4)
                         if ipaddress:
                             ipaddress = ipaddress.first()
+                            ipaddress.address = address
                         else:
                             ipaddress = IPAddress.objects.create(address=address, status='active')
                         
