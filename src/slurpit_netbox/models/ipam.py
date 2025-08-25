@@ -71,7 +71,7 @@ class SlurpitInitIPAddress(PrimaryModel):
     dns_name = models.CharField(
         max_length=255,
         blank=True,
-        null=True,
+        default="",
         validators=[DNSValidator],
         verbose_name=_('DNS name'),
         help_text=_('Hostname or FQDN (not case-sensitive)')
