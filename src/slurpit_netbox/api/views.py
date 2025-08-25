@@ -286,12 +286,18 @@ class SlurpitInterfaceView(SlurpitViewSet):
                         # Update
                         allowed_fields_with_none = {}
                         update = False
-                        for field, value in item.items():
+                        for field in SlurpitPrefix.reconcile_fields:
+                            value = item[field]
                             current = getattr(slurpit_interface_item, field, None)
                             if current != value:
-                                if field in SlurpitInterface.reconcile_fields and value is not None and value != "" or field in allowed_fields_with_none:
+                                if value is not None and value != "" or field in allowed_fields_with_none:
                                     update = True
                                     setattr(slurpit_interface_item, field, value)
+                                else:
+                                    update = True
+                                    value = initial_interface_values[field]
+                                    if current != value:
+                                        setattr(initial_interface_values, field, initial_interface_values[field])
                         if update:
                             batch_update_qs.append(slurpit_interface_item)
                     else:
@@ -312,6 +318,8 @@ class SlurpitInterfaceView(SlurpitViewSet):
 
                                 if field in not_null_fields and (new_interface[field] is None or new_interface[field] == ""):
                                     new_interface[field] = old_interface[field]
+                                    if (new_interface[field] is None or new_interface[field] == ""):
+                                        new_interface[field] = initial_interface_values[field]
 
                             if new_interface == old_interface:
                                 continue
@@ -526,12 +534,19 @@ class SlurpitIPAMView(SlurpitViewSet):
 
                         allowed_fields_with_none = {'status'}
                         update = record['address'] != slurpit_ipaddress_item.address
-                        for field, value in item.items():
+                        for field in SlurpitInitIPAddress.reconcile_fields:
+                            value = item[field]
                             current = getattr(slurpit_ipaddress_item, field, None)
                             if current != value:
-                                if field in SlurpitInitIPAddress.reconcile_fields and value is not None and value != "" or field in allowed_fields_with_none:
+                                if value is not None and value != "" or field in allowed_fields_with_none:
                                     update = True
                                     setattr(slurpit_ipaddress_item, field, value)
+                                else:
+                                    update = True
+                                    value = initial_ipaddress_values[field]
+                                    if current != value:
+                                        setattr(slurpit_ipaddress_item, field, initial_ipaddress_values[field])
+
                         if update:
                             batch_update_qs.append(slurpit_ipaddress_item)
                     else:
@@ -547,15 +562,15 @@ class SlurpitIPAMView(SlurpitViewSet):
                                 field_name = f'ignore_{field}'
                                 if field_name in ipaddress_update_ignore_values:
                                     continue
-                                old_ipaddress[field] =   getattr(obj, field)
+                                old_ipaddress[field] = getattr(obj, field)
                                 new_ipaddress[field] = item[field]
 
                                 if field in not_null_fields and (new_ipaddress[field] is None or new_ipaddress[field] == ""):
                                     new_ipaddress[field] = old_ipaddress[field]
-                                    if not new_ipaddress[field]:
+                                    if (new_ipaddress[field] is None or new_ipaddress[field] == ""):
                                         new_ipaddress[field] = initial_ipaddress_values[field]
 
-                            if new_ipaddress == old_ipaddress and item['address'] == obj.address:
+                            if new_ipaddress == old_ipaddress and item['address'] == str(obj.address):
                                 continue
                         else:
                             for field in SlurpitInitIPAddress.reconcile_fields:
@@ -760,12 +775,18 @@ class SlurpitPrefixView(SlurpitViewSet):
 
                         allowed_fields_with_none = {'status'}
                         update = False
-                        for field, value in item.items():
+                        for field in SlurpitPrefix.reconcile_fields:
+                            value = item[field]
                             current = getattr(slurpit_prefix_item, field, None)
                             if current != value:
-                                if field in SlurpitPrefix.reconcile_fields and value is not None and value != "" or field in allowed_fields_with_none:
+                                if value is not None and value != "" or field in allowed_fields_with_none:
                                     update = True
                                     setattr(slurpit_prefix_item, field, value)
+                                else:
+                                    update = True
+                                    value = initial_prefix_values[field]
+                                    if current != value:
+                                        setattr(initial_prefix_values, field, initial_prefix_values[field])
                         if update:
                             batch_update_qs.append(slurpit_prefix_item)
                     else:
@@ -787,6 +808,8 @@ class SlurpitPrefixView(SlurpitViewSet):
 
                                 if field in not_null_fields and (new_prefix[field] is None or new_prefix[field] == ""):
                                     new_prefix[field] = old_prefix[field]
+                                    if (new_prefix[field] is None or new_prefix[field] == ""):
+                                        new_prefix[field] = initial_prefix_values[field]
 
                             if new_prefix == old_prefix:
                                 continue
