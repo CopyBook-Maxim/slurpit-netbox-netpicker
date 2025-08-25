@@ -334,12 +334,8 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
             if conflic == 'create':
                 Device.objects.filter(name__lower__in=self.queryset.values('hostname__lower')).delete()
 
-                matching_ipv4s = []
                 for ipv4 in self.queryset.values_list('ipv4', flat=True).distinct():
-                    matching_ipv4s.append(ipv4)
-                # Delete the matching Device records
-                Device.objects.filter(primary_ip4__address__net_host__in=matching_ipv4s).delete()
-
+                    Device.objects.filter(primary_ip4__address__net_host=ipv4).delete()
 
             elif conflic == 'update_slurpit':
                 for obj in self.queryset:
