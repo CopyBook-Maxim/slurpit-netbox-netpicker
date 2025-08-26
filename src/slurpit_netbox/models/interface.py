@@ -226,6 +226,7 @@ class SlurpitInterface(ModularComponentModel, BaseInterface, CabledObjectModel, 
     )
 
     class Meta:
+        ordering = ('_name',)
         verbose_name = _('Slurpit Device Interface')
         verbose_name_plural = _('Slurpit Device Interface')
 

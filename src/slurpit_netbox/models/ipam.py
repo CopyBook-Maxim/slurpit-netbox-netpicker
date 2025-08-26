@@ -114,6 +114,7 @@ class SlurpitInitIPAddress(PrimaryModel):
     class Meta:
         verbose_name = _('Slurpit IP address')
         verbose_name_plural = _('Slurpit  IP addresses')
+        ordering = ('address',)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
