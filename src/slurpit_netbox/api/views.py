@@ -527,13 +527,13 @@ class SlurpitIPAMView(SlurpitViewSet):
 
 
                 for item in total_ips:
-                    slurpit_ipaddress_item = SlurpitInitIPAddress.objects.filter(address__net_host=record['stripped_address'], vrf=item['vrf'])
+                    slurpit_ipaddress_item = SlurpitInitIPAddress.objects.filter(address__net_host=item['stripped_address'], vrf=item['vrf'])
                     
                     if slurpit_ipaddress_item:
                         slurpit_ipaddress_item = slurpit_ipaddress_item.first()
 
                         allowed_fields_with_none = {'status'}
-                        update = record['address'] != slurpit_ipaddress_item.address
+                        update = item['address'] != slurpit_ipaddress_item.address
                         for field in SlurpitInitIPAddress.reconcile_fields:
                             value = item[field]
                             current = getattr(slurpit_ipaddress_item, field, None)
@@ -550,7 +550,7 @@ class SlurpitIPAMView(SlurpitViewSet):
                         if update:
                             batch_update_qs.append(slurpit_ipaddress_item)
                     else:
-                        obj = IPAddress.objects.filter(address__net_host=record['stripped_address'], vrf=vrf)
+                        obj = IPAddress.objects.filter(address__net_host=item['stripped_address'], vrf=vrf)
                         not_null_fields = {'role', 'description', 'tenant', 'dns_name'}
                         new_ipaddress = {}
 
