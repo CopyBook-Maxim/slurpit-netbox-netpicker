@@ -7,3 +7,8 @@ class SlurpitMapping(NetBoxModel):
 
     def __str__(self):
         return f"{self.source_field}"
+
+    class Meta:
+        ordering = ('source_field',)
+        verbose_name = _('Slurpit Mapping')
+        verbose_name_plural = _('Slurpit Mapping')

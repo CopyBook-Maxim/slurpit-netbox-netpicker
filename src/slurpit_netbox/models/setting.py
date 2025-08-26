@@ -21,6 +21,7 @@ class SlurpitSetting(PrimaryModel):
     class Meta:
         verbose_name = "setting"
         verbose_name_plural = "setting"
+        ordering = ('server_url',)
 
     def __str__(self):
         return f"{self.server_url}"

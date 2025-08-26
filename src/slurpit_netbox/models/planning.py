@@ -13,6 +13,11 @@ class SlurpitPlanning(PrimaryModel):
     def get_absolute_url(self):
         return reverse("plugins:slurpit_netbox:slurpitplanning", args=[self.pk])
 
+    class Meta:
+        ordering = ('name',)
+        verbose_name = _('Slurpit Planning')
+        verbose_name_plural = _('Slurpit Plannings')
+
 class SlurpitSnapshot(PrimaryModel):
     hostname = models.CharField(max_length=255)
     planning_id = models.BigIntegerField()
@@ -21,3 +26,8 @@ class SlurpitSnapshot(PrimaryModel):
 
     def __str__(self):
         return f"{self.hostname}#{self.planning_id}"
+
+    class Meta:
+        ordering = ('planning_id', 'hostname', )
+        verbose_name = _('Slurpit Snapshot')
+        verbose_name_plural = _('Slurpit Snapshots')

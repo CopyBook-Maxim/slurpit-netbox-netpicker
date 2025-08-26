@@ -29,6 +29,11 @@ class SlurpitStagedDevice(NetBoxModel):
     
     def __str__(self):
         return f"{self.hostname}"
+
+    class Meta:
+        ordering = ('hostname',)
+        verbose_name = _('Slurpit Staged Device')
+        verbose_name_plural = _('Slurpit Staged Devices')
     
     
 class SlurpitImportedDevice(NetBoxModel):
@@ -73,5 +78,10 @@ class SlurpitImportedDevice(NetBoxModel):
         self.site = device.site
         self.created = device.created
         self.last_updated = device.last_updated
+
+    class Meta:
+        ordering = ('hostname',)
+        verbose_name = _('Slurpit Imported Device')
+        verbose_name_plural = _('Slurpit Imported Devices')
 
     
