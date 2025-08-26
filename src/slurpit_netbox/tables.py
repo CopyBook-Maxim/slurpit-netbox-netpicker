@@ -1,3 +1,4 @@
+import ipaddress
 import django_tables2 as tables
 from django.utils.safestring import mark_safe
 from django.utils.html import escape
@@ -53,12 +54,7 @@ class ConditionalLink(Column):
             original_value = ""
             original_device = Device.objects.filter(name__iexact=record.hostname).first()
             if original_device is None and record.ipv4:
-                prefix = Prefix.objects.filter(prefix__net_contains=record.ipv4).order_by('-prefix').first()
-                if prefix:                    
-                    address = f'{record.ipv4}/{prefix.prefix.prefixlen}'
-                else:
-                    address = f'{record.ipv4}/32'
-                original_device = Device.objects.filter(primary_ip4__address=address).first()
+                original_device = Device.objects.filter(primary_ip4__address__net_host=record.ipv4).first()
 
             if original_device:
                 original_value = original_device.name
@@ -76,16 +72,10 @@ class ConditionalLink(Column):
         return link(value, value=value, record=record, bound_column=bound_column)
 
 class ConflictedColumn(Column):
-    def render(self, value, bound_column, record):
-        prefix = Prefix.objects.filter( prefix__net_contains=record.ipv4).order_by('-prefix').first()
-        if prefix:
-            address = f'{record.ipv4}/{prefix.prefix.prefixlen}'
-        else:
-            address = f'{record.ipv4}/32'
-            
+    def render(self, value, bound_column, record):            
         device = Device.objects.filter(name__iexact=record.hostname).first()
         if device is None:
-            device = Device.objects.filter(primary_ip4__address=address).first()
+            device = Device.objects.filter(primary_ip4__address__net_host=record.ipv4).first()
 
         original_value = ""
         column_name = bound_column.verbose_name
@@ -416,7 +406,8 @@ class SlurpitIPAMTable(TenancyColumnsMixin,NetBoxTable):
         default_columns = ('address', 'vrf', 'status', 'commit_action', 'dns_name', 'description', 'last_updated', 'edit')
 
     def render_commit_action(self, record):
-        obj = IPAddress.objects.filter(address=record.address, vrf=record.vrf)
+        ip = str(ipaddress.ip_interface(record.address.ip))
+        obj = IPAddress.objects.filter(address__net_host=ip, vrf=record.vrf)
         if obj:
             return 'Changing'
         return 'Adding'

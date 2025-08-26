@@ -71,7 +71,7 @@ class SlurpitInitIPAddress(PrimaryModel):
     dns_name = models.CharField(
         max_length=255,
         blank=True,
-        null=True,
+        default="",
         validators=[DNSValidator],
         verbose_name=_('DNS name'),
         help_text=_('Hostname or FQDN (not case-sensitive)')
@@ -101,6 +101,14 @@ class SlurpitInitIPAddress(PrimaryModel):
         default=False,
         null=True,
         verbose_name=_('ignore description'),
+    )
+
+    reconcile_fields = (
+        'status', 'role', 'vrf', 'tenant', 'description', 'dns_name',
+    )
+
+    ignore_fields = (
+        'ignore_status', 'ignore_vrf', 'ignore_tenant', 'ignore_role', 'ignore_description',
     )
 
     class Meta:

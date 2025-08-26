@@ -28,7 +28,7 @@ class SlurpitPlanningSerializer(NetBoxModelSerializer):
 class SlurpitStagedDeviceSerializer(serializers.ModelSerializer):
     class Meta:
         model = SlurpitStagedDevice
-        fields = ['id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', "serial", "os_version", "snmp_uptime", 'createddate', 'changeddate']
+        fields = ['id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', "serial", "os_version", "snmp_uptime", 'created', 'last_updated']
 
 class SlurpitInitIPAddressSerializer(serializers.ModelSerializer):
     class Meta:
@@ -59,7 +59,7 @@ class SlurpitImportedDeviceSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source='slurpit_id')
     class Meta:
         model = SlurpitImportedDevice
-        fields = ['id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', "serial", "os_version", "snmp_uptime", 'createddate', 'changeddate']
+        fields = ['id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', "serial", "os_version", "snmp_uptime", 'created', 'last_updated']
 
 
 class SlurpitSettingSerializer(WritableNestedSerializer):

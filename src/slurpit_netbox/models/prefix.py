@@ -154,6 +154,14 @@ class SlurpitPrefix(GetAvailablePrefixesMixin, CachedScopeMixin, PrimaryModel):
         'scope_type', 'scope_id', 'vrf', 'tenant', 'vlan', 'status', 'role', 'is_pool', 'mark_utilized', 'description',
     )
 
+    reconcile_fields = (
+        'status', 'vrf', 'role', 'vlan', 'tenant', 'description',
+    )
+
+    ignore_fields = (
+        'ignore_status', 'ignore_vrf', 'ignore_role', 'ignore_site', 'ignore_vlan', 'ignore_tenant', 'ignore_description',
+    )
+
     class Meta:
         ordering = (F('vrf').asc(nulls_first=True), 'prefix', 'pk')  # (vrf, prefix) may be non-unique
         verbose_name = _('Slurpit Prefix')

@@ -1,4 +1,4 @@
-import json
+import ipaddress
 import traceback
 from datetime import timedelta
 
@@ -113,9 +113,9 @@ class DeviceViewSet(
         sync_sites()
         errors = device_validator(request.data)
         if errors:
-            return JsonResponse({'status': 'error', 'errors': errors}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': errors}, status=400)
         if len(request.data) != 1:
-            return JsonResponse({'status': 'error', 'errors': ['List size should be 1']}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': ['List size should be 1']}, status=400)
 
         start_device_import()
         import_devices(request.data)
@@ -127,7 +127,7 @@ class DeviceViewSet(
     def sync(self, request):            
         errors = device_validator(request.data)
         if errors:
-            return JsonResponse({'status': 'error', 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({'status': 'errors', 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
         
         ids = [obj['id'] for obj in request.data]
         hostnames = [obj['hostname'] for obj in request.data]
@@ -139,7 +139,7 @@ class DeviceViewSet(
     def sync_start(self, request):
         sync_sites()
         threshold = timezone.now() - timedelta(days=1)
-        SlurpitStagedDevice.objects.filter(createddate__lt=threshold).delete()
+        SlurpitStagedDevice.objects.filter(created__lt=threshold).delete()
         return JsonResponse({'status': 'success'})
 
     @action(detail=False, methods=['post'],  url_path='sync_end')
@@ -193,14 +193,12 @@ class SlurpitInterfaceView(SlurpitViewSet):
         # Validate request Interface data
         errors = interface_validator(request.data)
         if errors:
-            return JsonResponse({'status': 'error', 'errors': errors}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': errors}, status=400)
 
         try:
             # Get initial values for Interface
             enable_reconcile = True
-            initial_obj = SlurpitInterface.objects.filter(name='').values(
-                'module', 'type', 'speed', 'label', 'description', 'duplex', 'enable_reconcile', 'ignore_module', 'ignore_type', 'ignore_speed', 'ignore_duplex', 'enabled'
-            ).first()
+            initial_obj = SlurpitInterface.objects.filter(name='').values('enable_reconcile', *SlurpitInterface.reconcile_fields, *SlurpitInterface.ignore_fields).first()
             initial_interface_values = {}
             interface_update_ignore_values = []
 
@@ -220,6 +218,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
                     'speed': 0,
                     'duplex': None,
                     'module': None,
+                    'device': None,
                     'enabled': True
                 }
 
@@ -286,22 +285,23 @@ class SlurpitInterfaceView(SlurpitViewSet):
 
                         # Update
                         allowed_fields_with_none = {}
-                        allowed_fields = {'duplex', 'label', 'description', 'speed', 'type', 'module', 'enabled'}
                         update = False
-                        for field, value in item.items():
+                        for field in SlurpitPrefix.reconcile_fields:
+                            value = item[field]
                             current = getattr(slurpit_interface_item, field, None)
                             if current != value:
-                                if field in allowed_fields and value is not None and value != "":
+                                if value is not None and value != "" or field in allowed_fields_with_none:
                                     update = True
                                     setattr(slurpit_interface_item, field, value)
-                                if field in allowed_fields_with_none:
+                                else:
                                     update = True
-                                    setattr(slurpit_interface_item, field, value)
+                                    value = initial_interface_values[field]
+                                    if current != value:
+                                        setattr(initial_interface_values, field, initial_interface_values[field])
                         if update:
                             batch_update_qs.append(slurpit_interface_item)
                     else:
                         obj = Interface.objects.filter(name=item['name'], device=item['device'])
-                        fields = {'label', 'device', 'module', 'type', 'duplex', 'speed', 'description', 'enabled'}
                         not_null_fields = {'label', 'device', 'module', 'type', 'duplex', 'speed', 'description', 'enabled'}
 
                         new_interface = {}
@@ -309,7 +309,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
                             obj = obj.first()
                             old_interface = {}
 
-                            for field in fields:
+                            for field in SlurpitInterface.reconcile_fields:
                                 field_name = f'ignore_{field}'
                                 if field_name in interface_update_ignore_values:
                                     continue
@@ -318,11 +318,13 @@ class SlurpitInterfaceView(SlurpitViewSet):
 
                                 if field in not_null_fields and (new_interface[field] is None or new_interface[field] == ""):
                                     new_interface[field] = old_interface[field]
+                                    if (new_interface[field] is None or new_interface[field] == ""):
+                                        new_interface[field] = initial_interface_values[field]
 
                             if new_interface == old_interface:
                                 continue
                         else:
-                            for field in fields: 
+                            for field in SlurpitInterface.reconcile_fields: 
                                 new_interface[field] = item[field]
 
                         batch_insert_qs.append(SlurpitInterface(
@@ -343,9 +345,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
                 offset = 0
                 while offset < count:
                     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                    SlurpitInterface.objects.bulk_update(batch_qs, 
-                        fields={'label', 'speed', 'type', 'duplex', 'description', 'module'}
-                    )
+                    SlurpitInterface.objects.bulk_update(batch_qs, fields=SlurpitInterface.reconcile_fields)
                     offset += BATCH_SIZE
 
                 duplicates = SlurpitInterface.objects.values('name', 'device_id').annotate(count=Count('id')).filter(count__gt=1)
@@ -376,7 +376,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
                         error_key = f'{new_data["name"]}({"Global" if new_data["device"] is None else new_data["device"]})'
                         total_errors[error_key] = error_list_dict
 
-                        return JsonResponse({'status': 'error', 'errors': total_errors}, status=400)
+                        return JsonResponse({'status': 'errors', 'errors': total_errors}, status=400)
                     else:
                         insert_data.append(new_data)
 
@@ -400,16 +400,13 @@ class SlurpitInterfaceView(SlurpitViewSet):
                     
                     # Update
                     allowed_fields_with_none = {}
-                    allowed_fields = {'duplex', 'label', 'speed', 'type', 'description', 'module'}
 
                     for field, value in update_item.items():
                         ignore_field = f'ignore_{field}'
                         if ignore_field in interface_update_ignore_values:
                             continue 
 
-                        if field in allowed_fields and value is not None and value != "":
-                            setattr(item, field, value)
-                        if field in allowed_fields_with_none:
+                        if field in SlurpitInterface.reconcile_fields and value is not None and value != "" or field in allowed_fields_with_none:
                             setattr(item, field, value)
 
                     batch_update_qs.append(item)
@@ -423,9 +420,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
                     for interface_item in batch_qs:
                         to_import.append(interface_item)
 
-                    Interface.objects.bulk_update(to_import, 
-                        fields={'label', 'speed', 'type', 'duplex', 'description', 'module'}
-                    )
+                    Interface.objects.bulk_update(to_import, fields=SlurpitInterface.reconcile_fields)
                     offset += BATCH_SIZE
 
 
@@ -443,21 +438,16 @@ class SlurpitIPAMView(SlurpitViewSet):
         # Validate request IPAM data
         errors = ipam_validator(request.data)
         if errors:
-            return JsonResponse({'status': 'error', 'errors': errors}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': errors}, status=400)
 
         vrf = None
-        tenant = None
-
         try:
             # Get initial values for IPAM
             enable_reconcile = True
-            initial_obj = SlurpitInitIPAddress.objects.filter(address=None).values(
-                'status', 'vrf', 'tenant', 'role', 'enable_reconcile', 'description', 'ignore_status', 'ignore_vrf', 'ignore_tenant', 'ignore_role', 'ignore_description'
-            ).first()
+            initial_obj = SlurpitInitIPAddress.objects.filter(address=None).values('enable_reconcile', *SlurpitInitIPAddress.reconcile_fields, *SlurpitInitIPAddress.ignore_fields).first()
 
             initial_ipaddress_values = {}
             ipaddress_update_ignore_values = []
-            vrf = None
             tenant = None
             if initial_obj:
                 enable_reconcile = initial_obj['enable_reconcile']
@@ -483,6 +473,7 @@ class SlurpitIPAMView(SlurpitViewSet):
                 initial_ipaddress_values['tenant'] = None
                 initial_ipaddress_values['role'] = ''
                 initial_ipaddress_values['description'] = ''
+                initial_ipaddress_values['dns_name'] = ''
                 initial_ipaddress_values['status'] = 'active'
 
             total_errors = {}
@@ -495,8 +486,16 @@ class SlurpitIPAMView(SlurpitViewSet):
             for record in request.data[::-1]:
                 unique_ipaddress = f'{record["address"]}'
 
-                if unique_ipaddress in duplicates:
-                    continue
+                if 'vrf' in record and len(record['vrf']) > 0:
+                    vrf = VRF.objects.filter(name=record['vrf'])
+                    if vrf:
+                        record['vrf'] = vrf.first()
+                    else:
+                        vrf = VRF.objects.create(name=record['vrf'])
+                        record['vrf'] = vrf
+                else:
+                    if 'vrf' in record:
+                        del record['vrf']
 
                 if unique_ipaddress.endswith("/32"):
                     unique_ipaddress = unique_ipaddress[:-3]
@@ -510,8 +509,12 @@ class SlurpitIPAMView(SlurpitViewSet):
                         unique_ipaddress = f'{unique_ipaddress}/32'
 
                 record['address'] = unique_ipaddress
+
+                record['stripped_address'] = str(ipaddress.ip_interface(record['address']).ip)
+                if record['stripped_address'] in duplicates:
+                    continue
                 
-                duplicates.append(unique_ipaddress)
+                duplicates.append(record['stripped_address'])
 
                 new_data = {**initial_ipaddress_values, **record}
                 total_ips.append(new_data)
@@ -522,30 +525,32 @@ class SlurpitIPAMView(SlurpitViewSet):
                 batch_update_qs = []
                 batch_insert_qs = []
 
-                for item in total_ips:
 
-                    slurpit_ipaddress_item = SlurpitInitIPAddress.objects.filter(address=item['address'], vrf=item['vrf'])
+                for item in total_ips:
+                    slurpit_ipaddress_item = SlurpitInitIPAddress.objects.filter(address__net_host=item['stripped_address'], vrf=item['vrf'])
                     
                     if slurpit_ipaddress_item:
                         slurpit_ipaddress_item = slurpit_ipaddress_item.first()
 
                         allowed_fields_with_none = {'status'}
-                        allowed_fields = {'role', 'tenant', 'dns_name', 'description'}
-                        update = False
-                        for field, value in item.items():
+                        update = item['address'] != slurpit_ipaddress_item.address
+                        for field in SlurpitInitIPAddress.reconcile_fields:
+                            value = item[field]
                             current = getattr(slurpit_ipaddress_item, field, None)
                             if current != value:
-                                if field in allowed_fields and value is not None and value != "":
+                                if value is not None and value != "" or field in allowed_fields_with_none:
                                     update = True
                                     setattr(slurpit_ipaddress_item, field, value)
-                                if field in allowed_fields_with_none:
+                                else:
                                     update = True
-                                    setattr(slurpit_ipaddress_item, field, value)
+                                    value = initial_ipaddress_values[field]
+                                    if current != value:
+                                        setattr(slurpit_ipaddress_item, field, initial_ipaddress_values[field])
+
                         if update:
                             batch_update_qs.append(slurpit_ipaddress_item)
                     else:
-                        obj = IPAddress.objects.filter(address=item['address'], vrf=vrf)
-                        fields = ['status', 'role', 'description', 'tenant', 'dns_name']
+                        obj = IPAddress.objects.filter(address__net_host=item['stripped_address'], vrf=vrf)
                         not_null_fields = {'role', 'description', 'tenant', 'dns_name'}
                         new_ipaddress = {}
 
@@ -553,25 +558,26 @@ class SlurpitIPAMView(SlurpitViewSet):
                             obj = obj.first()
                             old_ipaddress = {}
                             
-                            for field in fields:
+                            for field in SlurpitInitIPAddress.reconcile_fields:
                                 field_name = f'ignore_{field}'
                                 if field_name in ipaddress_update_ignore_values:
                                     continue
-                                old_ipaddress[field] =   getattr(obj, field)
+                                old_ipaddress[field] = getattr(obj, field)
                                 new_ipaddress[field] = item[field]
 
                                 if field in not_null_fields and (new_ipaddress[field] is None or new_ipaddress[field] == ""):
                                     new_ipaddress[field] = old_ipaddress[field]
+                                    if (new_ipaddress[field] is None or new_ipaddress[field] == ""):
+                                        new_ipaddress[field] = initial_ipaddress_values[field]
 
-                            if new_ipaddress == old_ipaddress:
+                            if new_ipaddress == old_ipaddress and item['address'] == str(obj.address):
                                 continue
                         else:
-                            for field in fields:
+                            for field in SlurpitInitIPAddress.reconcile_fields:
                                 new_ipaddress[field] = item[field]
                         
                         obj = SlurpitInitIPAddress(
                             address = item['address'], 
-                            vrf = vrf,
                             **new_ipaddress
                         )
 
@@ -589,7 +595,7 @@ class SlurpitIPAMView(SlurpitViewSet):
                 offset = 0
                 while offset < count:
                     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                    SlurpitInitIPAddress.objects.bulk_update(batch_qs, fields={'status', 'role', 'tenant', 'dns_name', 'description'})
+                    SlurpitInitIPAddress.objects.bulk_update(batch_qs, fields=SlurpitInitIPAddress.reconcile_fields)
                     offset += BATCH_SIZE
 
                 duplicates = SlurpitInitIPAddress.objects.values('address', 'vrf').annotate(count=Count('id')).filter(count__gt=1)
@@ -621,7 +627,7 @@ class SlurpitIPAMView(SlurpitViewSet):
                         error_key = f'{new_data["address"]}({"Global" if new_data["vrf"] is None else new_data["vrf"]})'
                         total_errors[error_key] = error_list_dict
 
-                        return JsonResponse({'status': 'error', 'errors': total_errors}, status=400)
+                        return JsonResponse({'status': 'errors', 'errors': total_errors}, status=400)
                     else:
                         insert_ips.append(new_data)
 
@@ -645,16 +651,13 @@ class SlurpitIPAMView(SlurpitViewSet):
 
                     # Update
                     allowed_fields_with_none = {'status'}
-                    allowed_fields = {'role', 'tenant', 'dns_name', 'description'}
 
                     for field, value in update_item.items():
                         ignore_field = f'ignore_{field}'
                         if ignore_field in ipaddress_update_ignore_values:
                             continue 
 
-                        if field in allowed_fields and value is not None and value != "":
-                            setattr(item, field, value)
-                        if field in allowed_fields_with_none:
+                        if field in SlurpitInitIPAddress.reconcile_fields and value is not None and value != "" or field in allowed_fields_with_none:
                             setattr(item, field, value)
 
                     batch_update_qs.append(item)
@@ -664,13 +667,13 @@ class SlurpitIPAMView(SlurpitViewSet):
                 while offset < count:
                     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
 
-                    IPAddress.objects.bulk_update(batch_qs, fields={'status', 'role', 'tenant', 'dns_name', 'description'})
+                    IPAddress.objects.bulk_update(batch_qs, fields=SlurpitInitIPAddress.reconcile_fields)
                     offset += BATCH_SIZE
 
 
             return JsonResponse({'status': 'success'})
         except Exception as e:
-            return JsonResponse({'status': 'error', 'errors': str(e)}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': f"Process threw error: {e} - {traceback.format_exc()}"}, status=400)
         
 
 
@@ -684,26 +687,17 @@ class SlurpitPrefixView(SlurpitViewSet):
         # Validate request prefix data
         errors = prefix_validator(request.data)
         if errors:
-            return JsonResponse({'status': 'error', 'errors': errors}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': errors}, status=400)
 
         vrf = None
-        tenant = None
-        vlan = None
         role = None
-        site = None
-        scope = None
-        scope_id = None
-        scope_type = None
-        site_group = None
-        location = None
-        region = None
+        vlan = None
+        tenant = None
             
         try:
             # Get initial values for prefix
             enable_reconcile = True
-            initial_obj = SlurpitPrefix.objects.filter(prefix=None).values(
-                'status', 'vrf', 'role', 'vlan', 'tenant', 'enable_reconcile', 'description', 'ignore_status', 'ignore_vrf', 'ignore_role', 'ignore_site', 'ignore_vlan', 'ignore_tenant', 'ignore_description', 'scope_id', 'scope_type', '_site', '_site_group', '_region', '_location'
-            ).first()
+            initial_obj = SlurpitPrefix.objects.filter(prefix=None).values('enable_reconcile', *SlurpitPrefix.reconcile_fields, *SlurpitPrefix.ignore_fields).first()
             initial_prefix_values = {}
             prefix_update_ignore_values = []
 
@@ -720,29 +714,11 @@ class SlurpitPrefixView(SlurpitViewSet):
                     vlan = VLAN.objects.get(pk=initial_prefix_values['vlan'])
                 if initial_prefix_values['role'] is not None:
                     role = Role.objects.get(pk=initial_prefix_values['role'])
-                # if initial_prefix_values['scope'] is not None:
-                #     scope = Scope.objects.get(pk=initial_prefix_values['scope'])
-                # if initial_prefix_values['scope_type'] is not None:
-                #     scope_type = ScopeType.objects.get(pk=initial_prefix_values['scope_type'])
-                if initial_prefix_values['_site'] is not None:
-                    site = Site.objects.get(pk=initial_prefix_values['_site'])
-                if initial_prefix_values['_site_group'] is not None:
-                    site_group = SiteGroup.objects.get(pk=initial_prefix_values['_site_group'])
-                if initial_prefix_values['_location'] is not None:
-                    location = Location.objects.get(pk=initial_prefix_values['_location'])
-                if initial_prefix_values['_region'] is not None:
-                    region = Region.objects.get(pk=initial_prefix_values['_region'])
 
                 initial_prefix_values['vrf'] = vrf
                 initial_prefix_values['tenant'] = tenant
                 initial_prefix_values['vlan'] = vlan
                 initial_prefix_values['role'] = role
-                initial_prefix_values['scope_id'] = scope_id
-                initial_prefix_values['scope_type'] = scope_type
-                initial_prefix_values['_site'] = site
-                initial_prefix_values['_site_group'] = site_group
-                initial_prefix_values['_location'] = location
-                initial_prefix_values['_region'] = region
 
                 for key in initial_prefix_values.keys():
                     if key.startswith('ignore_') and initial_prefix_values[key]:
@@ -752,12 +728,6 @@ class SlurpitPrefixView(SlurpitViewSet):
                 initial_prefix_values = {
                     'status': 'active',
                     'vrf': None,
-                    'scope_id': None,
-                    'scope_type': None,
-                    '_site': None,
-                    '_site_group': None,
-                    '_location': None,
-                    '_region': None,
                     'tenant': None,
                     'vlan': None,
                     'role': None,
@@ -804,32 +774,32 @@ class SlurpitPrefixView(SlurpitViewSet):
                         slurpit_prefix_item = slurpit_prefix_item.first()
 
                         allowed_fields_with_none = {'status'}
-                        allowed_fields = {'role', 'tenant', 'vlan', 'vrf', 'description', 'scope_id', 'scope_type', '_site', '_site_group', '_location', '_region'}
                         update = False
-                        for field, value in item.items():
+                        for field in SlurpitPrefix.reconcile_fields:
+                            value = item[field]
                             current = getattr(slurpit_prefix_item, field, None)
                             if current != value:
-                                if field in allowed_fields and value is not None and value != "":
+                                if value is not None and value != "" or field in allowed_fields_with_none:
                                     update = True
                                     setattr(slurpit_prefix_item, field, value)
-                                if field in allowed_fields_with_none:
+                                else:
                                     update = True
-                                    setattr(slurpit_prefix_item, field, value)
+                                    value = initial_prefix_values[field]
+                                    if current != value:
+                                        setattr(initial_prefix_values, field, initial_prefix_values[field])
                         if update:
                             batch_update_qs.append(slurpit_prefix_item)
                     else:
                         obj = Prefix.objects.filter(prefix=item['prefix'], vrf=item['vrf'])
                         
-                        fields = {'status', 'vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type', '_site', '_site_group', '_location', '_region'}
-                        not_null_fields = {'vlan', 'tenant', 'role', 'description'}
-                        
+                        not_null_fields = {'vlan', 'tenant', 'role', 'description'}                        
                         new_prefix = {}
 
                         if obj:
                             obj = obj.first()
                             old_prefix = {}
                             
-                            for field in fields:
+                            for field in SlurpitPrefix.reconcile_fields:
                                 field_name = f'ignore_{field}'
                                 if field_name in prefix_update_ignore_values:
                                     continue
@@ -838,11 +808,13 @@ class SlurpitPrefixView(SlurpitViewSet):
 
                                 if field in not_null_fields and (new_prefix[field] is None or new_prefix[field] == ""):
                                     new_prefix[field] = old_prefix[field]
+                                    if (new_prefix[field] is None or new_prefix[field] == ""):
+                                        new_prefix[field] = initial_prefix_values[field]
 
                             if new_prefix == old_prefix:
                                 continue
                         else:
-                            for field in fields:
+                            for field in SlurpitPrefix.reconcile_fields:
                                 new_prefix[field] = item.get(field, None)
 
                         batch_insert_qs.append(SlurpitPrefix(
@@ -863,7 +835,7 @@ class SlurpitPrefixView(SlurpitViewSet):
                 offset = 0
                 while offset < count:
                     batch_qs = batch_update_qs[offset:offset + BATCH_SIZE]
-                    SlurpitPrefix.objects.bulk_update(batch_qs, fields={'description', 'vrf', 'tenant', 'status', 'vlan', 'role', 'scope_id', 'scope_type', '_site', '_site_group', '_location', '_region'})
+                    SlurpitPrefix.objects.bulk_update(batch_qs, fields=SlurpitPrefix.reconcile_fields)
                     offset += BATCH_SIZE
 
                 duplicates = SlurpitPrefix.objects.values('prefix', 'vrf').annotate(count=Count('id')).filter(count__gt=1)
@@ -895,7 +867,7 @@ class SlurpitPrefixView(SlurpitViewSet):
                         error_key = f'{new_data["prefix"]}({"Global" if new_data["vrf"] is None else new_data["vrf"]})'
                         total_errors[error_key] = error_list_dict
 
-                        return JsonResponse({'status': 'error', 'errors': total_errors}, status=400)
+                        return JsonResponse({'status': 'errors', 'errors': total_errors}, status=400)
                     else:
                         insert_data.append(new_data)
 
@@ -919,16 +891,13 @@ class SlurpitPrefixView(SlurpitViewSet):
                     
                     # Update
                     allowed_fields_with_none = {'status'}
-                    allowed_fields = {'role', 'tenant', 'vlan', 'description', 'vrf', 'scope_id', 'scope_type', '_site', '_site_group', '_location', '_region'}
 
                     for field, value in update_item.items():
                         ignore_field = f'ignore_{field}'
                         if ignore_field in prefix_update_ignore_values:
                             continue 
                         
-                        if field in allowed_fields and value is not None and value != "":
-                            setattr(item, field, value)
-                        if field in allowed_fields_with_none:
+                        if field in SlurpitPrefix.reconcile_fields and value is not None and value != "" or field in allowed_fields_with_none:
                             setattr(item, field, value)
                     
                     batch_update_qs.append(item)
@@ -942,13 +911,8 @@ class SlurpitPrefixView(SlurpitViewSet):
                     for prefix_item in batch_qs:
                         to_import.append(prefix_item)
 
-                    Prefix.objects.bulk_update(to_import, 
-                        fields={
-                            'description', 'vrf', 'tenant', 'status', 'vlan', 'role', 'scope_id', 'scope_type', '_site', '_site_group', '_location', '_region'
-                        }
-                    )
+                    Prefix.objects.bulk_update(to_import, fields=SlurpitPrefix.reconcile_fields)
                     offset += BATCH_SIZE
-
 
             return JsonResponse({'status': 'success'})
         except Exception as e:
@@ -974,7 +938,7 @@ class SlurpitVLANView(SlurpitViewSet):
         # Validate request vlan data
         errors = vlan_validator(request.data)
         if errors:
-            return JsonResponse({'status': 'error', 'errors': errors}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': errors}, status=400)
 
         tenant = None
         role = None
@@ -1163,7 +1127,7 @@ class SlurpitVLANView(SlurpitViewSet):
                         error_key = f'{new_data["name"]}({new_data["vid"]})'
                         total_errors[error_key] = error_list_dict
 
-                        return JsonResponse({'status': 'error', 'errors': total_errors}, status=400)
+                        return JsonResponse({'status': 'errors', 'errors': total_errors}, status=400)
                     else:
                         insert_data.append(new_data)
 
@@ -1231,7 +1195,7 @@ class SlurpitVLANView(SlurpitViewSet):
 
             return JsonResponse({'status': 'success'})
         except Exception as e:
-            return JsonResponse({'status': 'errors', 'errors': str(e)}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': f"Process threw error: {e} - {traceback.format_exc()}"}, status=400)
 
 class SlurpitPlanningViewSet(
         SlurpitViewSet
@@ -1257,7 +1221,7 @@ class SlurpitSiteView(SlurpitViewSet):
         try:
             create_sites(request.data[::-1])
         except Exception as e:
-            return JsonResponse({'status': 'errors', 'errors': str(e)}, status=400)
+            return JsonResponse({'status': 'errors', 'errors': f"Process threw error: {e} - {traceback.format_exc()}"}, status=400)
 
         return JsonResponse({'status': 'success'})
         

@@ -75,7 +75,7 @@ class ReconcileView(generic.ObjectListView):
                 action = 'Updated'
                 
 
-                interface_fields = ['name', 'label','description', 'device', 'module', 'type', 'duplex', 'speed']
+                interface_fields = ('name', *SlurpitInterface.reconcile_fields)
 
                 incomming_queryset = SlurpitInterface.objects.filter(pk=pk)
                 incomming_obj = incomming_queryset.values(*interface_fields).first()
@@ -123,7 +123,7 @@ class ReconcileView(generic.ObjectListView):
                 diff_removed = None
                 action = 'Updated'
                 
-                prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type', '_site', '_site_group', '_location', '_region']
+                prefix_fields = ('prefix', *SlurpitPrefix.reconcile_fields)
 
                 incomming_queryset = SlurpitPrefix.objects.filter(pk=pk)
                 incomming_change = incomming_queryset.values(*prefix_fields).first()
@@ -171,12 +171,13 @@ class ReconcileView(generic.ObjectListView):
                 diff_removed = None
                 action = 'Updated'
 
-                ipam_fields = ['address', 'status', 'dns_name', 'description', 'vrf', 'tenant', 'role']
+                ipam_fields = ('address', *SlurpitInitIPAddress.reconcile_fields)
 
                 incomming_queryset = SlurpitInitIPAddress.objects.filter(pk=pk)
                 incomming_obj = incomming_queryset.values(*ipam_fields).first()
 
                 ipaddress = str(incomming_queryset.first().address)
+                ipaddress_stripped = str(incomming_queryset.first().address.ip)
                 updated_time = incomming_queryset.first().last_updated
 
 
@@ -186,12 +187,10 @@ class ReconcileView(generic.ObjectListView):
                 incomming_obj['address'] = ipaddress
                 incomming_change = {**incomming_obj}
 
-                
-
-                current_queryset = IPAddress.objects.filter(address=ipaddress, vrf=vrf)
+                current_queryset = IPAddress.objects.filter(address__net_host=ipaddress_stripped, vrf=vrf)
                 if current_queryset:
                     current_obj = current_queryset.values(*ipam_fields).first()
-                    current_obj['address'] = ipaddress
+                    current_obj['address'] = str(current_obj['address'])
                     current_state = {**current_obj}
                     instance = current_queryset.first()
                 else:
@@ -329,7 +328,7 @@ class ReconcileView(generic.ObjectListView):
                 diff_removed = None
                 action = 'Updated'
                 
-                prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region']
+                prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description',]
 
                 initial_obj = SlurpitPrefix.objects.filter(prefix=None).values(
                     'ignore_status', 'ignore_vrf', 'ignore_role', 'ignore_site', 'ignore_vlan', 'ignore_tenant', 'ignore_description'
@@ -344,7 +343,7 @@ class ReconcileView(generic.ObjectListView):
                         if initial_prefix_values[key]:
                             prefix_update_ignore_values.append(key)
 
-                updated_fields = ['status', 'tenant', 'description', 'role', 'vlan', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region']
+                updated_fields = ['status', 'tenant', 'description', 'role', 'vlan']
                 fields_to_remove = []
                 
                 for field in updated_fields:
@@ -428,8 +427,8 @@ class ReconcileView(generic.ObjectListView):
                 incomming_obj = incomming_queryset.values(*ipam_fields).first()
 
                 ipaddress = str(incomming_queryset.first().address)
+                ipaddress_stripped = str(incomming_queryset.first().address.ip)
                 updated_time = incomming_queryset.first().last_updated
-
 
                 title = ipaddress
                 vrf = incomming_obj['vrf']
@@ -437,12 +436,10 @@ class ReconcileView(generic.ObjectListView):
                 incomming_obj['address'] = ipaddress
                 incomming_change = {**incomming_obj}
 
-                
-
-                current_queryset = IPAddress.objects.filter(address=ipaddress, vrf=vrf)
+                current_queryset = IPAddress.objects.filter(address__net_host=ipaddress_stripped, vrf=vrf)
                 if current_queryset:
                     current_obj = current_queryset.values(*ipam_fields).first()
-                    current_obj['address'] = ipaddress
+                    current_obj['address'] = str(current_obj['address'])
                     current_state = {**current_obj}
                     instance = current_queryset.first()
                 else:
@@ -520,9 +517,7 @@ class ReconcileView(generic.ObjectListView):
                     else:
                         reconcile_items = SlurpitInterface.objects.filter(pk__in=pk_list)
 
-                    initial_obj = SlurpitInterface.objects.filter(name='').values(
-                        'ignore_module', 'ignore_type', 'ignore_speed', 'ignore_duplex'
-                    ).first()
+                    initial_obj = SlurpitInterface.objects.filter(name='').values(*SlurpitInterface.ignore_fields).first()
                     initial_interface_values = {}
                     interface_update_ignore_values = []
 
@@ -533,7 +528,7 @@ class ReconcileView(generic.ObjectListView):
                             if initial_interface_values[key]:
                                 interface_update_ignore_values.append(key)
 
-                    updated_fields = ['label', 'speed', 'description', 'type', 'duplex', 'module', 'enabled']
+                    updated_fields = SlurpitInterface.reconcile_fields
                     fields_to_remove = []
                     
                     for field in updated_fields:
@@ -612,9 +607,7 @@ class ReconcileView(generic.ObjectListView):
                     else:
                         reconcile_items = SlurpitPrefix.objects.filter(pk__in=pk_list)
                     
-                    initial_obj = SlurpitPrefix.objects.filter(prefix=None).values(
-                        'ignore_status', 'ignore_vrf', 'ignore_role', 'ignore_site', 'ignore_vlan', 'ignore_tenant', 'ignore_description'
-                    ).first()
+                    initial_obj = SlurpitPrefix.objects.filter(prefix=None).values(*SlurpitPrefix.ignore_fields).first()
                     initial_prefix_values = {}
                     prefix_update_ignore_values = []
 
@@ -625,7 +618,7 @@ class ReconcileView(generic.ObjectListView):
                             if initial_prefix_values[key]:
                                 prefix_update_ignore_values.append(key)
 
-                    updated_fields = ['status', 'tenant', 'description', 'role', 'vlan', 'scope_id', 'scope_type_id', '_site', '_site_group', '_location', '_region']
+                    updated_fields = SlurpitPrefix.reconcile_fields
                     fields_to_remove = []
                     
                     for field in updated_fields:
@@ -664,7 +657,7 @@ class ReconcileView(generic.ObjectListView):
                                     prefix = item.prefix,
                                     status = item.status, 
                                     vrf = item.vrf,
-                                    role = item. role, 
+                                    role = item.role, 
                                     vlan = item.vlan,
                                     description = item.description,
                                     tenant = item.tenant,
@@ -706,9 +699,7 @@ class ReconcileView(generic.ObjectListView):
                     else:
                         reconcile_items =SlurpitInitIPAddress.objects.filter(pk__in=pk_list)
 
-                    initial_obj = SlurpitInitIPAddress.objects.filter(address=None).values(
-                        'ignore_status', 'ignore_vrf', 'ignore_tenant', 'ignore_role', 'ignore_description'
-                    ).first()
+                    initial_obj = SlurpitInitIPAddress.objects.filter(address=None).values(*SlurpitInitIPAddress.ignore_fields).first()
 
                     initial_ipaddress_values = {}
                     ipaddress_update_ignore_values = []
@@ -720,7 +711,7 @@ class ReconcileView(generic.ObjectListView):
                             if initial_ipaddress_values[key]:
                                 ipaddress_update_ignore_values.append(key)
 
-                    updated_fields = ['status', 'role', 'tenant', 'dns_name', 'description']
+                    updated_fields = SlurpitInitIPAddress.reconcile_fields
                     fields_to_remove = []
                     
                     for field in updated_fields:
@@ -731,10 +722,12 @@ class ReconcileView(generic.ObjectListView):
                     updated_fields = list(set(updated_fields) - set(fields_to_remove))
 
                     for item in reconcile_items:
-                        netbox_ipaddress = IPAddress.objects.filter(address=item.address, vrf=item.vrf)
+                        address = str(item.address.ip)
+                        netbox_ipaddress = IPAddress.objects.filter(address__net_host=address, vrf=item.vrf)
                         # If the ip address is existed in netbox
                         if netbox_ipaddress:
                             netbox_ipaddress = netbox_ipaddress.first()
+                            netbox_ipaddress.address = item.address
 
                             if netbox_ipaddress.pk and hasattr(netbox_ipaddress, 'snapshot'):
                                 netbox_ipaddress.snapshot()
@@ -762,7 +755,7 @@ class ReconcileView(generic.ObjectListView):
                                 IPAddress(
                                     address = item.address, 
                                     vrf = item.vrf,
-                                    status = item. status, 
+                                    status = item.status, 
                                     role = item.role,
                                     description = item.description,
                                     tenant = item.tenant,
@@ -846,7 +839,7 @@ class ReconcileDetailView(generic.ObjectView):
             action = 'Updated'
             
 
-            interface_fields = ['name', 'label','description', 'device', 'module', 'type', 'duplex', 'speed']
+            interface_fields = ['name', *SlurpitInterface.reconcile_fields]
 
             incomming_queryset = SlurpitInterface.objects.filter(pk=pk)
             incomming_obj = incomming_queryset.values(*interface_fields).first()
@@ -893,7 +886,7 @@ class ReconcileDetailView(generic.ObjectView):
             diff_removed = None
             action = 'Updated'
             
-            prefix_fields = ['prefix', 'status','vrf', 'vlan', 'tenant', 'role', 'description', 'scope_id', 'scope_type_id']
+            prefix_fields = ['prefix', *SlurpitPrefix.reconcile_fields]
 
             incomming_queryset = SlurpitPrefix.objects.filter(pk=pk)
             incomming_change = incomming_queryset.values(*prefix_fields).first()
@@ -941,12 +934,13 @@ class ReconcileDetailView(generic.ObjectView):
             diff_removed = None
             action = 'Updated'
 
-            ipam_fields = ['address', 'status', 'dns_name', 'description', 'vrf', 'tenant', 'role']
+            ipam_fields = ['address', *SlurpitInitIPAddress.reconcile_fields]
 
             incomming_queryset = SlurpitInitIPAddress.objects.filter(pk=pk)
             incomming_obj = incomming_queryset.values(*ipam_fields).first()
 
             ipaddress = str(incomming_queryset.first().address)
+            stripped_address = str(incomming_queryset.first().address.ip)
             updated_time = incomming_queryset.first().last_updated
 
 
@@ -956,7 +950,7 @@ class ReconcileDetailView(generic.ObjectView):
             incomming_obj['address'] = ipaddress
             incomming_change = {**incomming_obj}
 
-            current_queryset = IPAddress.objects.filter(address=ipaddress, vrf=vrf)
+            current_queryset = IPAddress.objects.filter(address__net_host=stripped_address, vrf=vrf)
             if current_queryset:
                 current_obj = current_queryset.values(*ipam_fields).first()
                 current_obj['address'] = ipaddress

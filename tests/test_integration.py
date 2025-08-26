@@ -71,8 +71,8 @@ def test_devices(setup):
         "device_type": "slurpit",
         "brand": "slurpit",
         "disabled": "0",
-        "createddate": "2023-11-27 14:05:26",
-        "changeddate": "2024-04-04 16:27:23"
+        "created": "2023-11-27 14:05:26",
+        "last_updated": "2024-04-04 16:27:23"
     }]
     response = do_request('device/', method="POST",data=devices)
     assert response.status_code == 200, f"Status wasnt 200 \n{response.text}"

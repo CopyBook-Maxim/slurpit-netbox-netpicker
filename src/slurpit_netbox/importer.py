@@ -3,6 +3,7 @@ import requests
 from datetime import datetime
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.contenttypes.models import ContentType
 from django.db import connection, transaction
 from django.db.models import QuerySet, F, OuterRef, Subquery
 from django.utils import timezone
@@ -19,7 +20,7 @@ from dcim.models import Interface, Site
 from ipam.models import IPAddress, Prefix
 
 BATCH_SIZE = 512
-columns = ('slurpit_id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', "serial", "os_version", "snmp_uptime", 'createddate', 'changeddate', 'site')
+columns = ('slurpit_id', 'disabled', 'hostname', 'fqdn', 'ipv4', 'device_os', 'device_type', 'brand', "serial", "os_version", "snmp_uptime", 'created', 'last_updated', 'site')
 
 import re
 
@@ -143,8 +144,8 @@ def import_devices(devices):
         device['slurpit_id'] = device.pop('id')
         
         try:
-            device['createddate'] = timezone.make_aware(datetime.strptime(device['createddate'], '%Y-%m-%d %H:%M:%S'), timezone.get_current_timezone())
-            device['changeddate'] = timezone.make_aware(datetime.strptime(device['changeddate'], '%Y-%m-%d %H:%M:%S'), timezone.get_current_timezone())          
+            device['created'] = timezone.make_aware(datetime.strptime(device['createddate'], '%Y-%m-%d %H:%M:%S'), timezone.get_current_timezone())
+            device['last_updated'] = timezone.make_aware(datetime.strptime(device['changeddate'], '%Y-%m-%d %H:%M:%S'), timezone.get_current_timezone())          
         except ValueError:
             continue
         to_insert.append(SlurpitStagedDevice(**{key: value for key, value in device.items() if key in columns}))
@@ -205,13 +206,13 @@ def handle_new_comers():
 
     
 def handle_changed():
-    latest_changeddate_subquery = SlurpitImportedDevice.objects.filter(
+    latest_changed_subquery = SlurpitImportedDevice.objects.filter(
         slurpit_id=OuterRef('slurpit_id')
-    ).order_by('-changeddate').values('changeddate')[:1]
+    ).order_by('-last_updated').values('last_updated')[:1]
     qs = SlurpitStagedDevice.objects.annotate(
-        latest_changeddate=Subquery(latest_changeddate_subquery)
+        latest_changed=Subquery(latest_changed_subquery)
     ).filter(
-        changeddate__gt=F('latest_changeddate')
+        last_updated__gt=F('latest_changed')
     )
     offset = 0
     count = len(qs)
@@ -245,33 +246,15 @@ def handle_changed():
                 })   
                 
                 if device.ipv4:
-                    prefix = Prefix.objects.filter(prefix__net_contains=device.ipv4).order_by('-prefix').first()
-                    if prefix:
-                        
-                        address = f'{device.ipv4}/{prefix.prefix.prefixlen}'
-                    else:
-                        address = f'{device.ipv4}/32'
                     #### Remove Primary IPv4 on other device
-                    other_device = Device.objects.filter(primary_ip4__address=address).first()
+                    other_device = Device.objects.filter(primary_ip4__address__net_host=device.ipv4).exclude(id=result.mapped_device.id).first()
                     if other_device:
                         other_device.primary_ip4 = None
                         other_device.save()
 
-                    interface = Interface.objects.filter(device=result.mapped_device)
-                    if interface:
-                        interface = interface.first()
-                    else:
-                        interface = Interface.objects.create(name='management1', device=result.mapped_device, type='other')
-
-                    ipaddress = IPAddress.objects.filter(address=address)
-                    if ipaddress:
-                        ipaddress = ipaddress.first()
-                    else:
-                        ipaddress = IPAddress.objects.create(address=address, status='active')
-                    
-                    ipaddress.assigned_object = interface
-                    ipaddress.save()
-                    result.mapped_device.primary_ip4 = ipaddress
+                    ipaddress = get_ip_device(device.ipv4, result.mapped_device)
+                    if result.mapped_device.primary_ip4 != ipaddress:
+                        result.mapped_device.primary_ip4 = ipaddress
 
                 result.mapped_device.name = device.hostname
 
@@ -290,6 +273,38 @@ def import_from_queryset(qs: QuerySet, **extra):
             to_import.append(device)
         SlurpitImportedDevice.objects.bulk_update(to_import, fields={'mapped_device_id'})
         offset += BATCH_SIZE
+
+
+
+def get_ip_device(ipv4: str, device: Device):
+    update_ip = False
+    prefix = Prefix.objects.filter(prefix__net_contains=ipv4).order_by('-prefix').first()
+    if prefix:                            
+        address = f'{ipv4}/{prefix.prefix.prefixlen}'
+    else:
+        address = f'{ipv4}/32'
+    ipaddress = IPAddress.objects.filter(address__net_host=ipv4)
+    if ipaddress:
+        ipaddress = ipaddress.first()
+        if ipaddress.address != address:
+            ipaddress.address = address
+            update_ip = True
+    else:
+        ipaddress = IPAddress.objects.create(address=address, status='active')  
+
+    content_type = ContentType.objects.get_for_model(Interface)
+
+    if ipaddress.assigned_object_type != content_type or ipaddress.assigned_object.device != device:
+        interface = Interface.objects.filter(device=device, name='management1')
+        if interface:
+            ipaddress.assigned_object = interface.first()
+        else:
+            ipaddress.assigned_object = Interface.objects.create(name='management1', device=device, type='other')
+        update_ip = True
+    if update_ip:
+        ipaddress.save()
+
+    return ipaddress
 
 def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra) -> Device:
     kw = get_default_objects()
@@ -354,28 +369,14 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
 
     #Interface for new device.
     if staged.ipv4:
-        prefix = Prefix.objects.filter(prefix__net_contains=staged.ipv4).order_by('-prefix').first()
-        if prefix:
-            address = f'{staged.ipv4}/{prefix.prefix.prefixlen}'
-        else:
-            address = f'{staged.ipv4}/32'
         #### Remove Primary IPv4 on other device
-        other_device = Device.objects.filter(primary_ip4__address=address).first()
+        other_device = Device.objects.filter(primary_ip4__address__net_host=staged.ipv4).exclude(id=device.id).first()
         if other_device:
             other_device.primary_ip4 = None
             other_device.save()
             
-        interface, _ = Interface.objects.get_or_create(name=interface_name, device=device, defaults={'type':'other'})
-        
-        ipaddress = IPAddress.objects.filter(address=address)
-        if ipaddress:
-            ipaddress = ipaddress.first()
-        else:
-            ipaddress = IPAddress.objects.create(address=address, status='active')
-        ipaddress.assigned_object = interface
-        ipaddress.save()
+        ipaddress = get_ip_device(staged.ipv4, device)            
         device.primary_ip4 = ipaddress
-
         device.save()
     
     return device
