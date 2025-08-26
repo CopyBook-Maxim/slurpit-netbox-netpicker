@@ -247,7 +247,7 @@ def handle_changed():
                 
                 if device.ipv4:
                     #### Remove Primary IPv4 on other device
-                    other_device = Device.objects.filter(primary_ip4__address__net_host=device.ipv4).first()
+                    other_device = Device.objects.filter(primary_ip4__address__net_host=device.ipv4).exclude(id=result.mapped_device.id).first()
                     if other_device:
                         other_device.primary_ip4 = None
                         other_device.save()
@@ -255,9 +255,6 @@ def handle_changed():
                     ipaddress = get_ip_device(device.ipv4, result.mapped_device)
                     if result.mapped_device.primary_ip4 != ipaddress:
                         result.mapped_device.primary_ip4 = ipaddress
-
-                    ipaddress.save()
-                    result.mapped_device.primary_ip4 = ipaddress
 
                 result.mapped_device.name = device.hostname
 
@@ -373,7 +370,7 @@ def get_dcim_device(staged: SlurpitStagedDevice | SlurpitImportedDevice, **extra
     #Interface for new device.
     if staged.ipv4:
         #### Remove Primary IPv4 on other device
-        other_device = Device.objects.filter(primary_ip4__address__net_host=staged.ipv4).first()
+        other_device = Device.objects.filter(primary_ip4__address__net_host=staged.ipv4).exclude(id=device.id).first()
         if other_device:
             other_device.primary_ip4 = None
             other_device.save()

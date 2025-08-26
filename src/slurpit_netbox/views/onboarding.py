@@ -292,7 +292,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     # Interface
                     if obj.ipv4:
                         #### Remove Primary IPv4 on other device
-                        other_device = Device.objects.filter(primary_ip4__address__net_host=obj.ipv4).first()
+                        other_device = Device.objects.filter(primary_ip4__address__net_host=obj.ipv4).exclude(id=device.id).first()
                         if other_device:
                             other_device.primary_ip4 = None
                             other_device.save()
@@ -419,7 +419,7 @@ class SlurpitImportedDeviceOnboardView(SlurpitViewMixim, generic.BulkEditView):
                     # Interface
                     if obj.ipv4:
                         #### Remove Primary IPv4 on other device
-                        other_device = Device.objects.filter(primary_ip4__address__net_host=obj.ipv4).first()
+                        other_device = Device.objects.filter(primary_ip4__address__net_host=obj.ipv4).exclude(id=device.id).first()
                         if other_device:
                             other_device.primary_ip4 = None
                             other_device.save()
