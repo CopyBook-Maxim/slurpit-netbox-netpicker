@@ -1,5 +1,6 @@
 from django.db import models
 from dcim.models import Device, DeviceType
+from django.utils.translation import gettext_lazy as _
 
 """
 "hostname": "SW-PLC-33.amphia.zh",

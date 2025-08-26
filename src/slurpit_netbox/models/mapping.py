@@ -1,5 +1,6 @@
 from django.db import models
 from netbox.models import NetBoxModel
+from django.utils.translation import gettext_lazy as _
 
 class SlurpitMapping(NetBoxModel):
     source_field = models.CharField(max_length=255, unique=True)
