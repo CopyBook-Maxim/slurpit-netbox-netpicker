@@ -219,7 +219,8 @@ class SlurpitInterfaceView(SlurpitViewSet):
                     'duplex': None,
                     'module': None,
                     'device': None,
-                    'enabled': True
+                    'enabled': True,
+                    'mtu': 1500
                 }
 
                 # device = None
@@ -302,7 +303,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
                             batch_update_qs.append(slurpit_interface_item)
                     else:
                         obj = Interface.objects.filter(name=item['name'], device=item['device'])
-                        not_null_fields = {'label', 'device', 'module', 'type', 'duplex', 'speed', 'description', 'enabled'}
+                        not_null_fields = {'label', 'device', 'module', 'type', 'duplex', 'speed', 'description', 'enabled', 'mtu'}
 
                         new_interface = {}
                         if obj:

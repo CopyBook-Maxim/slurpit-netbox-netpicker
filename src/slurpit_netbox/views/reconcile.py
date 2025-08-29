@@ -258,7 +258,7 @@ class ReconcileView(generic.ObjectListView):
                 diff_removed = None
                 action = 'Updated'
                 
-                interface_fields = ['name', 'label','description', 'device', 'module', 'type', 'duplex', 'speed', 'enabled']
+                interface_fields = ['name', 'label','description', 'device', 'module', 'type', 'duplex', 'speed', 'enabled', 'mtu']
                 
                 initial_obj = SlurpitInterface.objects.filter(name='').values(
                     'ignore_module', 'ignore_type', 'ignore_speed', 'ignore_duplex'
@@ -272,7 +272,7 @@ class ReconcileView(generic.ObjectListView):
                         if initial_interface_values[key]:
                             interface_update_ignore_values.append(key)
 
-                updated_fields = ['label', 'speed', 'description', 'type', 'duplex', 'module', 'enabled']
+                updated_fields = ['label', 'speed', 'description', 'type', 'duplex', 'module', 'enabled', 'mtu']
                 fields_to_remove = []
                 
                 for field in updated_fields:
@@ -568,7 +568,8 @@ class ReconcileView(generic.ObjectListView):
                                     description = item.description,
                                     duplex = item.duplex,
                                     module = item.module,
-                                    enabled = item.enabled
+                                    enabled = item.enabled,
+                                    mtu =item.mtu
                             ))
                             batch_insert_ids.append(item.pk)
                         

@@ -375,7 +375,7 @@ class SlurpitDeviceInterfaceForm(InterfaceCommonForm, ModularDeviceComponentForm
     class Meta:
         model = SlurpitInterface
         fields = [
-           'module', 'name', 'label', 'type', 'speed', 'duplex',  'description', 'mode', 'vlan_group', 'untagged_vlan', 'tagged_vlans', 'enable_reconcile',
+           'module', 'name', 'label', 'type', 'speed', 'duplex',  'description', 'mode', 'vlan_group', 'untagged_vlan', 'tagged_vlans', 'enable_reconcile', 
             'ignore_module', 'ignore_type', 'ignore_speed', 'ignore_duplex'
         ]
         widgets = {
@@ -470,7 +470,7 @@ class ComponentBulkEditForm(NetBoxModelBulkEditForm):
 
 class SlurpitInterfaceBulkEditForm(
     form_from_model(SlurpitInterface, [
-        'label',  'type', 'speed', 'duplex',  'description', 'mode'
+        'label',  'type', 'speed', 'duplex',  'description', 'mode', 'mtu'
     ]),
     ComponentBulkEditForm
 ):
@@ -488,7 +488,7 @@ class SlurpitInterfaceBulkEditForm(
     )
 
     fields = [
-        'module', 'name', 'label', 'type', 'speed', 'duplex',  'description', 'mode',
+        'module', 'name', 'label', 'type', 'speed', 'duplex',  'description', 'mode', 'mtu'
     ]
 
 

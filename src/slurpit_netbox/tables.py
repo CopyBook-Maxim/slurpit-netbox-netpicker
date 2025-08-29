@@ -449,9 +449,9 @@ class SlurpitInterfaceTable(BaseInterfaceTable):
     class Meta(NetBoxTable.Meta):
         model = SlurpitInterface
         fields = (
-            'pk', 'name', 'device', 'label', 'enabled', 'type', 'description','commit_action', 'duplex'
+            'pk', 'name', 'device', 'label', 'enabled', 'type', 'description','commit_action', 'duplex', 'mtu'
         )
-        default_columns = ('pk', 'name', 'device', 'commit_action', 'label', 'enabled', 'type', 'duplex', 'description', 'edit')
+        default_columns = ('pk', 'name', 'device', 'commit_action', 'label', 'enabled', 'type', 'duplex', 'description', 'edit', 'mtu')
 
     def render_commit_action(self, record):
         obj = Interface.objects.filter(name=record.name, device=record.device)
