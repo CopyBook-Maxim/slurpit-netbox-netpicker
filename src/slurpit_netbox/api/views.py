@@ -220,7 +220,7 @@ class SlurpitInterfaceView(SlurpitViewSet):
                     'module': None,
                     'device': None,
                     'enabled': True,
-                    'mtu': 1500
+                    'mtu': 0
                 }
 
                 # device = None
