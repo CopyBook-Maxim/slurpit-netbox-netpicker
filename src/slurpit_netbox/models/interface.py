@@ -218,7 +218,7 @@ class SlurpitInterface(ModularComponentModel, BaseInterface, CabledObjectModel, 
     )
     
     reconcile_fields = (
-        'module', 'type', 'speed', 'duplex', 'label', 'description', 'enabled', 'device'
+        'module', 'type', 'speed', 'duplex', 'label', 'description', 'enabled', 'device', 'mtu'
     )
 
     ignore_fields = (
