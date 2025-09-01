@@ -375,7 +375,7 @@ class SlurpitDeviceInterfaceForm(InterfaceCommonForm, ModularDeviceComponentForm
     class Meta:
         model = SlurpitInterface
         fields = [
-           'module', 'name', 'label', 'type', 'speed', 'duplex',  'description', 'mode', 'vlan_group', 'untagged_vlan', 'tagged_vlans', 'enable_reconcile', 
+           'module', 'name', 'label', 'type', 'speed', 'duplex',  'description', 'mode', 'vlan_group', 'untagged_vlan', 'tagged_vlans', 'enable_reconcile', 'mtu',
             'ignore_module', 'ignore_type', 'ignore_speed', 'ignore_duplex'
         ]
         widgets = {
